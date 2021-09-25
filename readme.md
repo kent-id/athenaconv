@@ -1,0 +1,1 @@
+Provides conversion from athena outputs to strongly defined data models.
