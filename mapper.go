@@ -2,7 +2,7 @@ package athenaconv
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
@@ -49,7 +49,7 @@ func (m *dataMapper) FromAthenaResultSet(ctx context.Context, resultSet *types.R
 			mappedColumnInfo := resultSetSchema[athenaColName]
 			fieldName := modelDefColInfo.fieldName
 
-			fmt.Printf("SET model.%s = row.Data[%d] with athena col name = '%s'", fieldName, mappedColumnInfo.index, athenaColName)
+			log.Printf("SET model.%s = row.Data[%d] with athena col name = '%s'", fieldName, mappedColumnInfo.index, athenaColName)
 			colData, err := castAthenaRowData(ctx, row.Data[mappedColumnInfo.index], mappedColumnInfo.athenaColumnType)
 			model.Elem().FieldByName(fieldName).Set(reflect.ValueOf(colData))
 			if err != nil {

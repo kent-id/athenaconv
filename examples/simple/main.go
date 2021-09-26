@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"reflect"
 	"time"
 
@@ -73,7 +74,7 @@ func main() {
 	if err != nil {
 		handleError(err)
 	}
-	fmt.Println("msg", "StartQueryExecution result", "QueryExecutionId", *startQueryExecOutput.QueryExecutionId)
+	log.Println("msg", "StartQueryExecution result", "QueryExecutionId", *startQueryExecOutput.QueryExecutionId)
 
 	// 2. get query execution info and wait until query finishes
 	queryExecInput := athena.GetQueryExecutionInput{
@@ -90,10 +91,10 @@ func main() {
 		}
 		state = queryExecOutput.QueryExecution.Status.State
 		if state != types.QueryExecutionStateRunning && state != types.QueryExecutionStateQueued {
-			fmt.Println("msg", "stopped awaiting query results", "state", state)
+			log.Println("msg", "stopped awaiting query results", "state", state)
 			break
 		}
-		fmt.Println("msg", "still awaiting query results", "state", state, "waitTime", waitInterval)
+		log.Println("msg", "still awaiting query results", "state", state, "waitTime", waitInterval)
 		time.Sleep(waitInterval)
 	}
 
@@ -134,10 +135,10 @@ func main() {
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
-				fmt.Println("msg", "finished fetching results from athena")
+				log.Println("msg", "finished fetching results from athena")
 				break
 			}
-			fmt.Println("msg", "fetching next page results from athena", "nextToken", *nextToken)
+			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken)
 			page++
 		}
 	} else {
@@ -146,7 +147,7 @@ func main() {
 	}
 
 	for i, v := range output {
-		fmt.Printf("final output index %d: %+v\n", i, v)
+		log.Printf("final output index %d: %+v\n", i, v)
 	}
 }
 

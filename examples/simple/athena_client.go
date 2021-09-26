@@ -98,11 +98,11 @@ package main
 // 			nextToken = queryResultOutput.NextToken
 // 			if nextToken == nil {
 // 				//log.Debug(ctx, "msg", "finished fetching results from athena")
-// 				fmt.Printf("%+v", queryResultOutput)
+// 				log.Printf("%+v", queryResultOutput)
 // 				break
 // 			}
 // 			//log.Debug(ctx, "msg", "fetching next page results from athena", "nextToken", nextToken)
-// 			fmt.Printf("%+v", queryResultOutput)
+// 			log.Printf("%+v", queryResultOutput)
 // 		}
 // 		return queryResultOutput, nil // TODO concat results
 // 	} else {

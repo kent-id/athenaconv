@@ -2,7 +2,7 @@ package athenaconv
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +18,7 @@ func castAthenaRowData(ctx context.Context, rowData types.Datum, athenaType stri
 	var err error = nil
 
 	// for supported data types, see https://docs.aws.amazon.com/athena/latest/ug/data-types.html
-	fmt.Println("athenaType", athenaType)
+	log.Println("athenaType", athenaType)
 	switch athenaType {
 	case "boolean":
 		castedData = strings.ToLower(data) == "true"
@@ -41,7 +41,7 @@ func castAthenaRowData(ctx context.Context, rowData types.Datum, athenaType stri
 	case "date":
 		castedData, err = time.Parse("2006-01-02", data)
 	default:
-		fmt.Printf("ATHENA DATA TYPE NOT SUPPORTED: '%s', defaulting to string\n", athenaType)
+		log.Printf("ATHENA DATA TYPE NOT SUPPORTED: '%s', defaulting to string\n", athenaType)
 		castedData = data
 	}
 
