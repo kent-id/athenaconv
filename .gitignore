@@ -1,0 +1,5 @@
+# common files
+.DS_Store
+
+# binaries
+examples/simple/simple
