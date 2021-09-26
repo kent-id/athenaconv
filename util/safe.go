@@ -47,7 +47,7 @@ func RefInt32(input int32) *int32 {
 	return &input
 }
 
-// RefUInt32 returns a reference to an int32
+// RefUint32 returns a reference to an int32
 func RefUint32(input uint32) *uint32 {
 	return &input
 }

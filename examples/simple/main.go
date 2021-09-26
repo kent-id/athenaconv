@@ -20,7 +20,7 @@ const (
 	catalog      = "AwsDataCatalog"
 	database     = "datalab"
 	waitInterval = 1 * time.Second
-	testSql      = `
+	testSQL      = `
 select
     cc.compliance_computer_id as id,
 	cc.name as name,
@@ -37,7 +37,7 @@ limit 5
 `
 )
 
-// MyModel defines a schema that corresponds with your testSql above
+// MyModel defines a schema that corresponds with your testSQL above
 type MyModel struct {
 	ID                        int       `athenaconv:"id"`
 	Name                      string    `athenaconv:"name"`
@@ -67,7 +67,7 @@ func main() {
 	startQueryExecInput := athena.StartQueryExecutionInput{
 		QueryExecutionContext: &startQueryExecContext,
 		WorkGroup:             util.RefString(workgroup),
-		QueryString:           util.RefString(testSql),
+		QueryString:           util.RefString(testSQL),
 	}
 
 	startQueryExecOutput, err := awsAthenaClient.StartQueryExecution(ctx, &startQueryExecInput)

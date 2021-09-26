@@ -59,7 +59,7 @@ func validateResultSetSchema(ctx context.Context, resultSetSchema resultSetDefin
 		return err
 	}
 
-	for key, _ := range modelDefSchema {
+	for key := range modelDefSchema {
 		if _, ok := resultSetSchema[key]; !ok {
 			err := fmt.Errorf("column '%s' is defined in model schema but not found in result set", key)
 			return err
