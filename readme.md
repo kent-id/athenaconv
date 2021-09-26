@@ -1,3 +1,5 @@
+![logo](https://repository-images.githubusercontent.com/410152783/12feee34-e08d-4725-ae11-d5109a7a56aa "athenaconv logo")
+
 Provides conversion from athena outputs to strongly defined data models.
 
 The package works as intended but still needs more development:
