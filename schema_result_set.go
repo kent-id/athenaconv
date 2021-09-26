@@ -19,6 +19,11 @@ type resultSetColInfo struct {
 
 // newResultSetDefinitionMap reads the schema definition from result set metadata
 func newResultSetDefinitionMap(ctx context.Context, resultSetMetadataSchema *types.ResultSetMetadata) (resultSetDefinitionMap, error) {
+	if len(resultSetMetadataSchema.ColumnInfo) <= 0 {
+		err := fmt.Errorf("at least one column be returned by the data set")
+		return nil, err
+	}
+
 	schema := make(map[string]resultSetColInfo)
 	for index, columnInfo := range resultSetMetadataSchema.ColumnInfo {
 		columnName := util.SafeString(columnInfo.Name)
