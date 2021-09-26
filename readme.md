@@ -48,7 +48,7 @@ if err != nil {
 ```
 
 ## Supported data types
-See conversion.go and [supported data types in athena](https://docs.aws.amazon.com/athena/latest/ug/data-types.html) for more details.
+See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.go) in this repo and [supported data types in athena](https://docs.aws.amazon.com/athena/latest/ug/data-types.html) for more details.
 - boolean
 - varchar
 - integer
