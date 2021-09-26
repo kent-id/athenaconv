@@ -1,0 +1,33 @@
+name: Build and test
+on: [push]
+
+jobs:
+  build:
+    name: Build and run tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2   # checks-out repository under $GITHUB_WORKSPACE
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Install dependencies
+      run: |
+        go version
+        go get -u golang.org/x/lint/golint
+
+    - name: Build
+      run: go build ./...
+      
+    - name: Vet
+      run: go vet ./...
+
+    - name: Lint
+      run: golint ./...
+
+    - name: Test
+      run: go test -v -coverprofile=profile.cov ./...
+      
