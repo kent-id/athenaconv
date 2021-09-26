@@ -28,9 +28,7 @@ select
 	array_agg(ic.name order by ic.name) as source_computer_names,
 	timestamp '2012-10-31 08:11:22' as test_timestamp,
 	date '2021-12-31' as test_date,
-	true as test_bool,
-	5.4 as test_double,
-	CAST('X' as char) as test_char
+	true as test_bool
 from xxx
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
@@ -48,47 +46,11 @@ type MyModel struct {
 	TestTimestamp             time.Time `athenaconv:"test_timestamp"`
 	TestDate                  time.Time `athenaconv:"test_date"`
 	TestBool                  bool      `athenaconv:"test_bool"`
-	TestDouble                float64   `athenaconv:"test_double"`
-	TestChar                  rune      `athenaconv:"test_char"`
 }
 
 func main() {
 	ctx := context.Background()
-	// test code for reflect:
-	// model := new(MyModel)
-	// fmt.Printf("%+v\n", *model)
-
-	// v := reflect.New(reflect.TypeOf(*model))
-	// fmt.Printf("%+v\n", v.Elem())
-	// fmt.Printf("%+v\n", v.Elem().Interface())
-	// fmt.Printf("NumField: %d\n", v.Elem().NumField())
-
-	// modelType2 := reflect.TypeOf(new(MyModel)).Elem()
-	// fmt.Printf("NumField: %d\n", modelType2.NumField())
-	// for i := 0; i < modelType2.NumField(); i++ {
-	// 	field := modelType2.Field(i)
-	// 	fmt.Printf("Tag: %v\n", field.Tag)
-	// 	fmt.Printf("athenaconv tag: %v\n", field.Tag.Get("athenaconv"))
-	// }
-
-	// modelType2 := reflect.TypeOf(MyModel{})
-	// newModel2 := reflect.New(modelType2)
-	// fmt.Printf("A: %+v\n", newModel2)
-	// fmt.Printf("B: %+v\n", newModel2.Elem())
-	// fmt.Printf("C: %+v\n", newModel2.Elem().Interface())
-	// fmt.Printf("D: %+v\n", newModel2.Elem().NumField())
-
-	// newModel2.Elem().FieldByName("ID").Set(reflect.ValueOf(-1))
-	// fmt.Printf("E: %+v\n", newModel2.Elem())
-
-	// // model2.Elem().Elem().FieldByName("ID").Set(reflect.ValueOf(5))
-	// // fmt.Printf("Tag: %+v\n", model2)
-
-	// return
-
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	// awsConfig, err := config.LoadDefaultConfig(ctx, config.WithSharedConfigProfile("temp1"), config.WithRegion(region))
-	// awsConfig, err := config.LoadSharedConfigProfile(ctx, "temp1")
 	if err != nil {
 		handleError(err)
 	}
@@ -135,7 +97,6 @@ func main() {
 		time.Sleep(waitInterval)
 	}
 
-	// TODO
 	modelType := reflect.TypeOf(MyModel{})
 	mapper, err := athenaconv.NewMapperFor(modelType)
 	if err != nil {
@@ -159,14 +120,12 @@ func main() {
 			if err != nil {
 				handleError(err)
 			}
-			printOutput(queryResultOutput)
 
 			// skip header row if first page results
 			if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
 				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
 			}
 
-			// TODO
 			castedResultSet, err := mapper.FromAthenaResultSet(ctx, queryResultOutput.ResultSet)
 			if err != nil {
 				handleError(err)
@@ -193,28 +152,4 @@ func main() {
 
 func handleError(err error) {
 	panic(err)
-}
-
-func printOutput(output *athena.GetQueryResultsOutput) {
-	nextToken := ""
-	if output.NextToken != nil {
-		nextToken = *output.NextToken
-	}
-	fmt.Println("NextToken", nextToken)
-
-	// print metadata:
-	fmt.Println("RESULT SET METADATA")
-	for _, columnInfo := range output.ResultSet.ResultSetMetadata.ColumnInfo {
-		fmt.Println(*columnInfo.Name, "type:", *columnInfo.Type)
-	}
-	fmt.Println("END RESULT SET METADATA")
-
-	// print data rows:
-	fmt.Println("RESULT SET ROWS")
-	for _, row := range output.ResultSet.Rows {
-		for colIndex, col := range row.Data {
-			fmt.Println("index", colIndex, "VarCharValue", *col.VarCharValue)
-		}
-	}
-	fmt.Println("END RESULT SET ROWS")
 }
