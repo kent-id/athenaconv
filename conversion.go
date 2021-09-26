@@ -18,7 +18,6 @@ func castAthenaRowData(ctx context.Context, rowData types.Datum, athenaType stri
 	var err error = nil
 
 	// for supported data types, see https://docs.aws.amazon.com/athena/latest/ug/data-types.html
-	log.Println("athenaType", athenaType)
 	switch athenaType {
 	case "boolean":
 		castedData = strings.ToLower(data) == "true"

@@ -74,7 +74,6 @@ func main() {
 	if err != nil {
 		handleError(err)
 	}
-	log.Println("msg", "StartQueryExecution result", "QueryExecutionId", *startQueryExecOutput.QueryExecutionId)
 
 	// 2. get query execution info and wait until query finishes
 	queryExecInput := athena.GetQueryExecutionInput{
@@ -146,8 +145,9 @@ func main() {
 		handleError(err)
 	}
 
+	log.Println("FINAL OUTPUT:")
 	for i, v := range output {
-		log.Printf("final output index %d: %+v\n", i, v)
+		log.Printf("index %d: %+v\n", i, v)
 	}
 }
 
