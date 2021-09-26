@@ -14,6 +14,11 @@ type modelDefinitionColInfo struct {
 }
 
 func newModelDefinitionMap(modelType reflect.Type) (modelDefinitionMap, error) {
+	if modelType.NumField() <= 0 {
+		err := fmt.Errorf("at least one field should be defined for struct of type: %s", modelType.String())
+		return nil, err
+	}
+
 	schema := make(map[string]modelDefinitionColInfo)
 	// generate schema from struct tags:
 	for i := 0; i < modelType.NumField(); i++ {

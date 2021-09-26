@@ -18,6 +18,12 @@ type DataMapper interface {
 	FromAthenaResultSet(ctx context.Context, input *types.ResultSet) ([]interface{}, error)
 }
 
+// NewMapperFor creates new DataMapper for given reflect.Type
+// Supports reflect.Type of value rather than a pointer.
+//
+// Example:
+//
+// mapper, err := athenaconv.NewMapperFor(reflect.TypeOf(MyStruct{}))
 func NewMapperFor(modelType reflect.Type) (DataMapper, error) {
 	modelDefinitionSchema, err := newModelDefinitionMap(modelType)
 	if err != nil {
@@ -31,6 +37,9 @@ func NewMapperFor(modelType reflect.Type) (DataMapper, error) {
 	return mapper, nil
 }
 
+// FromAthenaResultSet converts the ResultSet passed into array of mapper.modelType.
+// Returns conversion error if header values are passed, i.e. first row of your athena ResultSet in page 1.
+// Returns error if the athena ResultSetMetadata does not match the mapper definition.
 func (m *dataMapper) FromAthenaResultSet(ctx context.Context, resultSet *types.ResultSet) ([]interface{}, error) {
 	resultSetSchema, err := newResultSetDefinitionMap(ctx, resultSet.ResultSetMetadata)
 	if err != nil {

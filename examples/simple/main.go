@@ -37,7 +37,7 @@ limit 5
 `
 )
 
-// myModel defines a schema that corresponds with your testSql above
+// MyModel defines a schema that corresponds with your testSql above
 type MyModel struct {
 	ID                        int       `athenaconv:"id"`
 	Name                      string    `athenaconv:"name"`
