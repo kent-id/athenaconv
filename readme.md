@@ -5,14 +5,14 @@ Given the following data struct you define:
 
 ```go
 type MyModel struct {
-	ID                        int       `athenaconv:"id"`
-	Name                      string    `athenaconv:"name"`
-	SourceComputersCount      int64     `athenaconv:"source_computers_count"`
-	SourceComputerExternalIDs []string  `athenaconv:"source_computer_ids"`
-	SourceComputerNames       []string  `athenaconv:"source_computer_names"`
-	TestTimestamp             time.Time `athenaconv:"test_timestamp"`
-	TestDate                  time.Time `athenaconv:"test_date"`
-	TestBool                  bool      `athenaconv:"test_bool"`
+    ID                        int       `athenaconv:"id"`
+    Name                      string    `athenaconv:"name"`
+    SourceComputersCount      int64     `athenaconv:"source_computers_count"`
+    SourceComputerExternalIDs []string  `athenaconv:"source_computer_ids"`
+    SourceComputerNames       []string  `athenaconv:"source_computer_names"`
+    TestTimestamp             time.Time `athenaconv:"test_timestamp"`
+    TestDate                  time.Time `athenaconv:"test_date"`
+    TestBool                  bool      `athenaconv:"test_bool"`
 }
 ```
 
