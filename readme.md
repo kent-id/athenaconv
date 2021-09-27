@@ -2,12 +2,6 @@
 
 Provides conversion from athena outputs to strongly defined data models.
 
-The package works as intended but still needs more development:
-- [ ] Add some more high-level tests around mapper.go
-- [ ] Add more data type support in conversion.go
-- [ ] Review usage of logging (best practice for logging in packages)
-- [ ] Is referencing aws-sdk-go-v2 the best practice? How does that affect other client libraries referencing this package?
-
 ## Getting started
 Given the following data struct you define:
 
@@ -71,3 +65,7 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 
 ## Known limitations
 - Individual items within array data type cannot contain comma.
+
+## Roadmap / items to review
+- [ ] Add more data type support in conversion.go
+- [ ] Review usage of logging (best practice for logging in golang packages)
