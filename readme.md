@@ -47,6 +47,9 @@ mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 if err != nil {
     handleError(err)
 }
+for _, mappedItem := range mapped {
+    mappedItemModel := mappedItem.(*MyModel)
+}
 ```
 
 ## Supported data types

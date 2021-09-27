@@ -59,19 +59,18 @@ var _ = Describe("Mapper", func() {
 	})
 
 	Context("FromAthenaResultSetV2", func() {
-		var mapper DataMapper
-		var err error
-
-		BeforeEach(func() {
-			mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(mapper).ToNot(BeNil())
-		})
-
 		When("model definition and result set matches", func() {
-			It("should correctly map the values into strongly-typed model", func() {
+			var mapper DataMapper
+			var err error
+			var metadata types.ResultSetMetadata
+
+			BeforeEach(func() {
+				mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapper).ToNot(BeNil())
+
 				// arrange result set
-				metadata := types.ResultSetMetadata{
+				metadata = types.ResultSetMetadata{
 					ColumnInfo: make([]types.ColumnInfo, 0),
 				}
 				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
@@ -82,6 +81,24 @@ var _ = Describe("Mapper", func() {
 					Name: util.RefString("name_col"),
 					Type: util.RefString("varchar"),
 				})
+			})
+
+			It("should correctly map the values with no row data", func() {
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				mapped, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+
+				// assert
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapped).ToNot(BeNil())
+				Expect(len(mapped)).To(Equal(0))
+			})
+
+			It("should correctly map the values with row data", func() {
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,
 					Rows:              make([]types.Row, 0),

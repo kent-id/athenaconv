@@ -37,7 +37,7 @@ func NewAthenaClientV2(ctx context.Context, awsConfig aws.Config, workgroup, dat
 		catalog:      catalog,
 		database:     database,
 		waitInterval: 1 * time.Second,
-		maxPageSize:  1000,
+		maxPageSize:  1000, // max allowed by athena
 	}
 }
 
@@ -102,7 +102,7 @@ func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuer
 			}
 
 			for _, mappedItem := range mapped {
-				mappedItemModel := reflect.ValueOf(mappedItem).Interface()
+				mappedItemModel := mappedItem
 				resultsChannel <- mappedItemModel
 			}
 
