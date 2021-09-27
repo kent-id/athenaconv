@@ -37,12 +37,7 @@ select
 	timestamp '2012-10-31 08:11:22' as test_timestamp,
 	date '2021-12-31' as test_date,
 	true as test_bool
-from fnms_compliance_computers_view cc
-join fnms_compliance_computer_connections link
-	on link.org_id = cc.org_id and link.compliance_computer_id = cc.compliance_computer_id
-join fnms_imported_computers_view ic
-	on ic.org_id = link.org_id and ic.connection_id = link.connection_id and ic.external_id = link.external_id
-where cc.org_id = 27826
+from xxx
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
 order by cc.compliance_computer_id
