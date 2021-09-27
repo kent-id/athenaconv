@@ -56,20 +56,20 @@ for _, mappedItem := range mapped {
 
 ## Supported data types
 See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.go) in this repo and [supported data types in athena](https://docs.aws.amazon.com/athena/latest/ug/data-types.html) for more details.
-- boolean
-- varchar
-- integer
-- bigint
-- array
-- timestamp
-- date
-- other athena data types default to string
+
+| Athena data type                         | Go data type                         | Comments                                                                  |
+| :--------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------ |
+| varchar                                  | string                               |                                                                           |
+| boolean                                  | bool                                 |                                                                           |
+| integer                                  | int/int32                            |                                                                           |
+| bigint                                   | int64                                |                                                                           |
+| timestamp                                | time.Time                            |                                                                           |
+| date                                     | time.Time                            |                                                                           |
+| array                                    | []string                             | Individual items within array should not contain comma                    |
+| other data types                         | string                               | Other data types currently unsupported, default to string (no conversion) |
 
 ## Supported AWS SDK version
 - [github.com/aws/aws-sdk-go-v2/service/athena/types](https://github.com/aws/aws-sdk-go-v2/tree/main/service/athena/types)
-
-## Known limitations
-- Individual items within array data type cannot contain comma.
 
 ## Roadmap / items to review
 - [ ] Add more data type support in conversion.go
