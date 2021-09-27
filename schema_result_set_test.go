@@ -3,6 +3,7 @@ package athenaconv
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
 	"github.com/kent-id/athenaconv/util"
@@ -51,6 +52,7 @@ var _ = Describe("Schema: result set", func() {
 				})
 				_, err := newResultSetDefinitionMap(ctx, &metadata)
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("column name .* empty"))
 			})
 
 			It("should return error on missing name", func() {
@@ -62,6 +64,7 @@ var _ = Describe("Schema: result set", func() {
 				})
 				_, err := newResultSetDefinitionMap(ctx, &metadata)
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("column type .* empty"))
 			})
 		})
 
@@ -80,6 +83,7 @@ var _ = Describe("Schema: result set", func() {
 				})
 				_, err := newResultSetDefinitionMap(ctx, &metadata)
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("duplicate .* my_id_col"))
 			})
 		})
 
@@ -90,6 +94,7 @@ var _ = Describe("Schema: result set", func() {
 				}
 				_, err := newResultSetDefinitionMap(ctx, &metadata)
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(ContainSubstring("at least one column"))
 			})
 		})
 	})
@@ -156,6 +161,7 @@ var _ = Describe("Schema: result set", func() {
 
 				err = validateResultSetSchema(ctx, resultSetSchema, modelDefinitionSchema)
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("'name_col' .* not found"))
 			})
 		})
 	})

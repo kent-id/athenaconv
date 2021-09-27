@@ -47,17 +47,7 @@ func RefInt32(input int32) *int32 {
 	return &input
 }
 
-// RefUint32 returns a reference to an int32
-func RefUint32(input uint32) *uint32 {
-	return &input
-}
-
 // RefInt64 returns a reference to an int64
 func RefInt64(input int64) *int64 {
-	return &input
-}
-
-// RefUint64 returns a reference to an uint64
-func RefUint64(input uint64) *uint64 {
 	return &input
 }

@@ -29,5 +29,5 @@ jobs:
       run: golint ./...
 
     - name: Test
-      run: go test -v -coverprofile=profile.cov ./...
+      run: go test $(go list ./... | grep -v /examples) -v -coverprofile=profile.cov
       

@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
 	"github.com/kent-id/athenaconv/util"
@@ -39,6 +40,7 @@ var _ = Describe("Mapper", func() {
 			It("should return error", func() {
 				_, err := NewMapperFor(reflect.TypeOf(invalidModel{}))
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("missing .* name"))
 			})
 		})
 
@@ -46,6 +48,7 @@ var _ = Describe("Mapper", func() {
 			It("should return error", func() {
 				_, err := NewMapperFor(reflect.TypeOf(&validModel{}))
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
 			})
 		})
 
@@ -54,6 +57,7 @@ var _ = Describe("Mapper", func() {
 				testMap := make(map[string]int)
 				_, err := NewMapperFor(reflect.TypeOf(testMap))
 				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
 			})
 		})
 	})
@@ -129,6 +133,61 @@ var _ = Describe("Mapper", func() {
 					Expect(casted.ID).To(Equal(index))
 					Expect(casted.Name).To(Equal("name " + strconv.Itoa(index)))
 				}
+			})
+		})
+
+		When("model definition and result set does not match", func() {
+			var mapper DataMapper
+			var err error
+			var metadata types.ResultSetMetadata
+
+			BeforeEach(func() {
+				mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mapper).ToNot(BeNil())
+
+				// arrange result set
+				metadata = types.ResultSetMetadata{
+					ColumnInfo: make([]types.ColumnInfo, 0),
+				}
+				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
+					Name: util.RefString("my_id_col"),
+					Type: util.RefString("integer"),
+				})
+				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
+					Name: util.RefString("name_col"),
+					Type: util.RefString("varchar"),
+				})
+			})
+
+			It("should return error on mismatched field count", func() {
+				metadata.ColumnInfo = metadata.ColumnInfo[1:] // remove first metadata
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(ContainSubstring("mismatched schema"))
+			})
+
+			It("should return error on column name not found in model definition", func() {
+				metadata.ColumnInfo[0].Name = util.RefString("something_other_than_my_id_col")
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("'my_id_col' .* not found"))
 			})
 		})
 	})
