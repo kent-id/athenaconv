@@ -53,4 +53,22 @@ var _ = Describe("Schema: model definition", func() {
 			Expect(err).To(HaveOccurred())
 		})
 	})
+
+	Context("Model type is a pointer instead of struct value", func() {
+		It("should return error", func() {
+			type test struct {
+				ID int `athenaconv:"my_id_col"`
+			}
+			_, err := newModelDefinitionMap(reflect.TypeOf(&test{}))
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("Model type is an int instead of struct", func() {
+		It("should return error", func() {
+			var num int = 0
+			_, err := newModelDefinitionMap(reflect.TypeOf(num))
+			Expect(err).To(HaveOccurred())
+		})
+	})
 })

@@ -14,6 +14,10 @@ type modelDefinitionColInfo struct {
 }
 
 func newModelDefinitionMap(modelType reflect.Type) (modelDefinitionMap, error) {
+	if modelType.Kind() != reflect.Struct {
+		err := fmt.Errorf("%s is invalid modelType, expecting kind of 'struct' but got '%s'", modelType.String(), modelType.Kind())
+		return nil, err
+	}
 	if modelType.NumField() <= 0 {
 		err := fmt.Errorf("at least one field should be defined for struct of type: %s", modelType.String())
 		return nil, err
