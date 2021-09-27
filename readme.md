@@ -36,19 +36,19 @@ group by id, name
 You can convert your `athena.GetQueryResultOutput` object to strongly-typed struct `MyModel` by doing this:
 
 ```go
-modelType := reflect.TypeOf(MyModel{})
-mapper, err := athenaconv.NewMapperFor(modelType)
+mapper, err := athenaconv.NewMapperFor(reflect.TypeOf(MyModel{}))
 if err != nil {
     handleError(err)
 }
 
 var mapped []interface{}
-mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
+mapped, err = mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 if err != nil {
     handleError(err)
 }
 for _, mappedItem := range mapped {
     mappedItemModel := mappedItem.(*MyModel)
+    fmt.Printf("%+v\n", *mappedItemModel)
 }
 ```
 
