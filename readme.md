@@ -49,7 +49,7 @@ if err != nil {
 }
 
 var mapped []interface{}
-mapped, err := mapper.FromAthenaResultSet(ctx, queryResultOutput.ResultSet)
+mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 if err != nil {
     handleError(err)
 }
@@ -65,6 +65,9 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 - timestamp
 - date
 - other athena data types default to string
+
+## Supported AWS SDK version
+- github.com/aws/aws-sdk-go-v2/service/athena/types
 
 ## Known limitations
 - Individual items within array data type cannot contain comma.

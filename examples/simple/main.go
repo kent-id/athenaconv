@@ -30,9 +30,15 @@ select
 	timestamp '2012-10-31 08:11:22' as test_timestamp,
 	date '2021-12-31' as test_date,
 	true as test_bool
-from xxx
+from fnms_compliance_computers_view cc
+join fnms_compliance_computer_connections link
+	on link.org_id = cc.org_id and link.compliance_computer_id = cc.compliance_computer_id
+join fnms_imported_computers_view ic
+	on ic.org_id = link.org_id and ic.connection_id = link.connection_id and ic.external_id = link.external_id
+where cc.org_id = 27826
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
+order by cc.compliance_computer_id
 limit 5
 `
 )
@@ -126,19 +132,20 @@ func main() {
 				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
 			}
 
-			castedResultSet, err := mapper.FromAthenaResultSet(ctx, queryResultOutput.ResultSet)
+			mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 			if err != nil {
 				handleError(err)
 			}
-			output = append(output, castedResultSet[:]...)
+			output = append(output, mapped...)
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
 				log.Println("msg", "finished fetching results from athena")
 				break
 			}
-			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken)
+
 			page++
+			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
 		}
 	} else {
 		err = fmt.Errorf("query execution failed with status: %s", state)
