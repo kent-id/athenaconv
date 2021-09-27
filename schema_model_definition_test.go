@@ -2,6 +2,7 @@ package athenaconv
 
 import (
 	"reflect"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,6 +33,7 @@ var _ = Describe("Schema: model definition", func() {
 			}
 			_, err := newModelDefinitionMap(reflect.TypeOf(test{}))
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("missing .* name"))
 		})
 	})
 
@@ -43,6 +45,7 @@ var _ = Describe("Schema: model definition", func() {
 			}
 			_, err := newModelDefinitionMap(reflect.TypeOf(test{}))
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("duplicate .* my_id_col"))
 		})
 	})
 
@@ -51,6 +54,7 @@ var _ = Describe("Schema: model definition", func() {
 			type test struct{}
 			_, err := newModelDefinitionMap(reflect.TypeOf(test{}))
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("at least one field"))
 		})
 	})
 
@@ -61,6 +65,7 @@ var _ = Describe("Schema: model definition", func() {
 			}
 			_, err := newModelDefinitionMap(reflect.TypeOf(&test{}))
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
 		})
 	})
 
@@ -69,6 +74,7 @@ var _ = Describe("Schema: model definition", func() {
 			var num int = 0
 			_, err := newModelDefinitionMap(reflect.TypeOf(num))
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
 		})
 	})
 })

@@ -2,6 +2,7 @@ package athenaconv
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
@@ -68,6 +69,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("-----2147483648")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeInt)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
 		})
 
 		// anything above int64 range will overflow
@@ -75,6 +77,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("9223372036854775807123213122")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeInt)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("out of range"))
 		})
 	})
 
@@ -90,6 +93,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("9223372_NOT_VALID_036854775807")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeBigInt)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
 		})
 
 		// anything above int64 range will overflow
@@ -97,6 +101,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("9223372036854775807123213122")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeInt)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("out of range"))
 		})
 	})
 
@@ -162,6 +167,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("INVALID DATE 2012-10-31 08:11:22.000")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeTimestamp)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(ContainSubstring("cannot parse"))
 		})
 	})
 
@@ -181,6 +187,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("2016-02-29 08:11:22.000")} // date type contains timestamp
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeDate)
 			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing time .* extra text"))
 		})
 	})
 

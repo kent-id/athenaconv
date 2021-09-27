@@ -1,5 +1,6 @@
 # common files
 .DS_Store
+profile.cov
 
 # binaries
 examples/simple/simple

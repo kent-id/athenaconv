@@ -29,5 +29,9 @@ jobs:
       run: golint ./...
 
     - name: Test
-      run: go test -v -coverprofile=profile.cov ./...
+      run: go test $(go list ./... | grep -v /examples) -v -coverprofile=profile.cov
       
+    - name: Upload code coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        path-to-profile: profile.cov
