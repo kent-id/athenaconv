@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Schema: model definition", func() {
-	Context("Valid struct definition", func() {
+	When("model type/definition is valid", func() {
 		It("should return expected column definition", func() {
 			type test struct {
 				ID           int    `athenaconv:"my_id_col"`
@@ -24,7 +24,7 @@ var _ = Describe("Schema: model definition", func() {
 		})
 	})
 
-	Context("Missing struct tags", func() {
+	When("any struct field is missing athenaconv tags", func() {
 		It("should return error", func() {
 			type test struct {
 				ID   int `athenaconv:"my_id_col"`
@@ -35,7 +35,7 @@ var _ = Describe("Schema: model definition", func() {
 		})
 	})
 
-	Context("Duplicate struct tags", func() {
+	When("struct fields have duplicate tags", func() {
 		It("should return error", func() {
 			type test struct {
 				ID   int    `athenaconv:"my_id_col"`
@@ -46,10 +46,28 @@ var _ = Describe("Schema: model definition", func() {
 		})
 	})
 
-	Context("Empty struct", func() {
+	When("struct has no fields", func() {
 		It("should return expected column definition", func() {
 			type test struct{}
 			_, err := newModelDefinitionMap(reflect.TypeOf(test{}))
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	When("model type is a pointer instead of struct value", func() {
+		It("should return error", func() {
+			type test struct {
+				ID int `athenaconv:"my_id_col"`
+			}
+			_, err := newModelDefinitionMap(reflect.TypeOf(&test{}))
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	When("model type is an int instead of struct", func() {
+		It("should return error", func() {
+			var num int = 0
+			_, err := newModelDefinitionMap(reflect.TypeOf(num))
 			Expect(err).To(HaveOccurred())
 		})
 	})

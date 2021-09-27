@@ -33,6 +33,7 @@ select
 from xxx
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
+order by cc.compliance_computer_id
 limit 5
 `
 )
@@ -126,19 +127,20 @@ func main() {
 				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
 			}
 
-			castedResultSet, err := mapper.FromAthenaResultSet(ctx, queryResultOutput.ResultSet)
+			mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 			if err != nil {
 				handleError(err)
 			}
-			output = append(output, castedResultSet[:]...)
+			output = append(output, mapped...)
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
 				log.Println("msg", "finished fetching results from athena")
 				break
 			}
-			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken)
+
 			page++
+			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
 		}
 	} else {
 		err = fmt.Errorf("query execution failed with status: %s", state)

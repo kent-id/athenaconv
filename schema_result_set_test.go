@@ -17,7 +17,7 @@ var _ = Describe("Schema: result set", func() {
 	})
 
 	Context("newResultSetDefinitionMap", func() {
-		Context("Valid metadata definition", func() {
+		When("result set metadata is valid", func() {
 			It("should return expected column definition", func() {
 				metadata := types.ResultSetMetadata{
 					ColumnInfo: make([]types.ColumnInfo, 0),
@@ -41,7 +41,7 @@ var _ = Describe("Schema: result set", func() {
 			})
 		})
 
-		Context("Missing column name / type", func() {
+		When("result set metadata has missing column name / type", func() {
 			It("should return error on missing name", func() {
 				metadata := types.ResultSetMetadata{
 					ColumnInfo: make([]types.ColumnInfo, 0),
@@ -65,7 +65,7 @@ var _ = Describe("Schema: result set", func() {
 			})
 		})
 
-		Context("Duplicate column name", func() {
+		When("result set metadata has duplicate column name", func() {
 			It("should return error", func() {
 				metadata := types.ResultSetMetadata{
 					ColumnInfo: make([]types.ColumnInfo, 0),
@@ -83,7 +83,7 @@ var _ = Describe("Schema: result set", func() {
 			})
 		})
 
-		Context("Empty data set / no columns", func() {
+		When("result set metadata has no column info defined", func() {
 			It("should return error", func() {
 				metadata := types.ResultSetMetadata{
 					ColumnInfo: make([]types.ColumnInfo, 0),
@@ -95,7 +95,7 @@ var _ = Describe("Schema: result set", func() {
 	})
 
 	Context("newResultSetDefinitionMap", func() {
-		Context("Valid metadata definition", func() {
+		When("model type/definition is valid", func() {
 			It("should return expected column definition", func() {
 				// model definition schema
 				type test struct {
@@ -127,7 +127,7 @@ var _ = Describe("Schema: result set", func() {
 			})
 		})
 
-		Context("Column not found in model definition", func() {
+		When("result set metadata column is not found in model definition", func() {
 			It("should return error", func() {
 				// model definition schema
 				type test struct {

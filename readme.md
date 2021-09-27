@@ -2,12 +2,6 @@
 
 Provides conversion from athena outputs to strongly defined data models.
 
-The package works as intended but still needs more development:
-- [ ] Add some more high-level tests around mapper.go
-- [ ] Add more data type support in conversion.go
-- [ ] Review usage of logging (best practice for logging in packages)
-- [ ] Is referencing aws-sdk-go-v2 the best practice? How does that affect other client libraries referencing this package?
-
 ## Getting started
 Given the following data struct you define:
 
@@ -49,9 +43,12 @@ if err != nil {
 }
 
 var mapped []interface{}
-mapped, err := mapper.FromAthenaResultSet(ctx, queryResultOutput.ResultSet)
+mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
 if err != nil {
     handleError(err)
+}
+for _, mappedItem := range mapped {
+    mappedItemModel := mappedItem.(*MyModel)
 }
 ```
 
@@ -66,5 +63,12 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 - date
 - other athena data types default to string
 
+## Supported AWS SDK version
+- [github.com/aws/aws-sdk-go-v2/service/athena/types](https://github.com/aws/aws-sdk-go-v2/tree/main/service/athena/types)
+
 ## Known limitations
 - Individual items within array data type cannot contain comma.
+
+## Roadmap / items to review
+- [ ] Add more data type support in conversion.go
+- [ ] Review usage of logging (best practice for logging in golang packages)

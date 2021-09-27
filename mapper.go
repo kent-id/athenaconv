@@ -14,11 +14,11 @@ type dataMapper struct {
 
 // DataMapper provides abstraction to convert athena ResultSet object to arbitrary user-defined struct
 type DataMapper interface {
-	FromAthenaResultSet(ctx context.Context, input *types.ResultSet) ([]interface{}, error)
+	FromAthenaResultSetV2(ctx context.Context, input *types.ResultSet) ([]interface{}, error)
 }
 
 // NewMapperFor creates new DataMapper for given reflect.Type
-// Supports reflect.Type of value rather than a pointer.
+// reflect.Type should be of struct value type, not pointer to struct.
 //
 // Example:
 //
@@ -36,10 +36,16 @@ func NewMapperFor(modelType reflect.Type) (DataMapper, error) {
 	return mapper, nil
 }
 
-// FromAthenaResultSet converts the ResultSet passed into array of mapper.modelType.
+// FromAthenaResultSetV2 converts ResultSet from aws-sdk-go-v2/service/athena/types into strongly-typed array[mapper.modelType]
 // Returns conversion error if header values are passed, i.e. first row of your athena ResultSet in page 1.
 // Returns error if the athena ResultSetMetadata does not match the mapper definition.
-func (m *dataMapper) FromAthenaResultSet(ctx context.Context, resultSet *types.ResultSet) ([]interface{}, error) {
+//
+// Example:
+// if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
+// 		queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]		// skip header row
+// }
+// mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
+func (m *dataMapper) FromAthenaResultSetV2(ctx context.Context, resultSet *types.ResultSet) ([]interface{}, error) {
 	resultSetSchema, err := newResultSetDefinitionMap(ctx, resultSet.ResultSetMetadata)
 	if err != nil {
 		return nil, err
@@ -65,7 +71,7 @@ func (m *dataMapper) FromAthenaResultSet(ctx context.Context, resultSet *types.R
 			}
 		}
 
-		result = append(result, model.Elem())
+		result = append(result, model.Interface())
 	}
 
 	return result, nil
