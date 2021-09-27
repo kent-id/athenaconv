@@ -61,7 +61,7 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 - other athena data types default to string
 
 ## Supported AWS SDK version
-- github.com/aws/aws-sdk-go-v2/service/athena/types
+- [github.com/aws/aws-sdk-go-v2/service/athena/types](https://github.com/aws/aws-sdk-go-v2/tree/main/service/athena/types)
 
 ## Known limitations
 - Individual items within array data type cannot contain comma.
