@@ -41,7 +41,7 @@ from xxx
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
 order by cc.compliance_computer_id
-limit 5
+limit 20
 	`
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
 	if err != nil {
@@ -50,14 +50,24 @@ limit 5
 
 	client := NewAthenaClientV2(ctx, awsConfig, "datalab", "datalab", "AwsDataCatalog")
 
+	log.Println("with channel:")
+	exampleWithChannel(ctx, client, sql)
+
+	log.Println("without channel:")
+	exampleWithoutChannel(ctx, client, sql)
+
+	log.Println("program finished")
+}
+
+func exampleWithChannel(ctx context.Context, client AthenaClientV2, sql string) {
 	var wg sync.WaitGroup
 	resultsChan := make(chan interface{})
 	errorsChan := make(chan error)
 
 	wg.Add(2)
 	go func() {
-		for result := range resultsChan {
-			nextRow := result.(*MyModel)
+		for item := range resultsChan {
+			nextRow := item.(*MyModel)
 			log.Println("msg", "received next row data", "data", fmt.Sprintf("%+v", nextRow))
 		}
 		wg.Done()
@@ -71,8 +81,17 @@ limit 5
 
 	client.GetQueryResultsIntoChannel(ctx, sql, reflect.TypeOf(MyModel{}), resultsChan, errorsChan)
 	wg.Wait()
+}
 
-	log.Println("program finished")
+func exampleWithoutChannel(ctx context.Context, client AthenaClientV2, sql string) {
+	result, err := client.GetQueryResults(ctx, sql, reflect.TypeOf(MyModel{}))
+	if err != nil {
+		handleError(err)
+	}
+	for _, item := range result {
+		nextRow := item.(*MyModel)
+		log.Println("msg", "row data", "data", fmt.Sprintf("%+v", nextRow))
+	}
 }
 
 func handleError(err error) {

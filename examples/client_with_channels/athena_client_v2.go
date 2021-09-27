@@ -25,6 +25,7 @@ type athenaClientV2 struct {
 
 // AthenaClientV2 is a client to AWS Athena providing strongly-typed model binding and using aws-sdk-go-v2
 type AthenaClientV2 interface {
+	GetQueryResults(ctx context.Context, sqlQuery string, modelType reflect.Type) ([]interface{}, error)
 	GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, modelType reflect.Type, resultsChannel chan<- interface{}, errorsChan chan<- error)
 }
 
@@ -42,6 +43,75 @@ func NewAthenaClientV2(ctx context.Context, awsConfig aws.Config, workgroup, dat
 }
 
 // GetQueryResults returns query results for the given SQL query
+func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, modelType reflect.Type) ([]interface{}, error) {
+	awsAthenaClient := athena.NewFromConfig(c.awsConfig)
+
+	// 1. start query
+	queryExecutionID, err := c.startQueryAndGetExecutionID(ctx, awsAthenaClient, sqlQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. get query execution info and wait until query finishes
+	state, err := c.waitQueryAndGetState(ctx, awsAthenaClient, queryExecutionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. finally if query is successful, get the query results output
+	if *state == types.QueryExecutionStateSucceeded {
+		queryResultInput := athena.GetQueryResultsInput{
+			QueryExecutionId: queryExecutionID,
+			MaxResults:       &c.maxPageSize,
+		}
+
+		result := make([]interface{}, 0)
+		mapper, err := athenaconv.NewMapperFor(modelType)
+		if err != nil {
+			return nil, err
+		}
+
+		var nextToken *string = nil
+		var page uint = 1
+		for {
+			queryResultInput.NextToken = nextToken
+			queryResultOutput, err := awsAthenaClient.GetQueryResults(ctx, &queryResultInput)
+			if err != nil {
+				return nil, err
+			}
+
+			// skip header row if first page results
+			if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
+				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
+			}
+
+			mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, mappedItem := range mapped {
+				mappedItemModel := mappedItem
+				result = append(result, mappedItemModel)
+			}
+
+			nextToken = queryResultOutput.NextToken
+			if nextToken == nil {
+				log.Println("msg", "finished fetching results from athena")
+				break
+			}
+
+			page++
+			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+		}
+		return result, nil
+	} else {
+		err = fmt.Errorf("query execution failed with status: %s", *state)
+		return nil, err
+	}
+}
+
+// GetQueryResultsIntoChannel returns query results for the given SQL query into the results channel
 func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, modelType reflect.Type, resultsChannel chan<- interface{}, errorsChan chan<- error) {
 	closeChannels := func() {
 		close(resultsChannel)
