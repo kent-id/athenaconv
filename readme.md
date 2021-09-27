@@ -2,7 +2,7 @@
 
 Provides conversion from athena outputs to strongly defined data models.
 
-[![Coverage Status](https://coveralls.io/repos/github/kent-id/athenaconv/badge.svg)](https://coveralls.io/github/kent-id/athenaconv)
+[![Build and test](https://github.com/kent-id/athenaconv/actions/workflows/athenaconv.yaml/badge.svg)](https://github.com/kent-id/athenaconv/actions/workflows/athenaconv.yaml) [![Coverage Status](https://coveralls.io/repos/github/kent-id/athenaconv/badge.svg)](https://coveralls.io/github/kent-id/athenaconv)
 
 ## Getting started
 Given the following data struct you define:
