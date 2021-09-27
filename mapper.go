@@ -65,10 +65,10 @@ func (m *dataMapper) FromAthenaResultSetV2(ctx context.Context, resultSet *types
 
 			// log.Printf("SET model.%s = row.Data[%d] with athena col name = '%s'", fieldName, mappedColumnInfo.index, athenaColName)
 			colData, err := castAthenaRowData(ctx, row.Data[mappedColumnInfo.index], mappedColumnInfo.athenaColumnType)
-			model.Elem().FieldByName(fieldName).Set(reflect.ValueOf(colData))
 			if err != nil {
 				return nil, err
 			}
+			model.Elem().FieldByName(fieldName).Set(reflect.ValueOf(colData))
 		}
 
 		result = append(result, model.Interface())

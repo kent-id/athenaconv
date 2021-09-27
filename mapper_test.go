@@ -63,31 +63,32 @@ var _ = Describe("Mapper", func() {
 	})
 
 	Context("FromAthenaResultSetV2", func() {
-		When("model definition and result set matches", func() {
-			var mapper DataMapper
-			var err error
-			var metadata types.ResultSetMetadata
+		var mapper DataMapper
+		var err error
+		var metadata types.ResultSetMetadata
 
-			BeforeEach(func() {
-				mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(mapper).ToNot(BeNil())
+		BeforeEach(func() {
+			mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mapper).ToNot(BeNil())
 
-				// arrange result set
-				metadata = types.ResultSetMetadata{
-					ColumnInfo: make([]types.ColumnInfo, 0),
-				}
-				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
-					Name: util.RefString("my_id_col"),
-					Type: util.RefString("integer"),
-				})
-				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
-					Name: util.RefString("name_col"),
-					Type: util.RefString("varchar"),
-				})
+			// result set
+			metadata = types.ResultSetMetadata{
+				ColumnInfo: make([]types.ColumnInfo, 0),
+			}
+			metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
+				Name: util.RefString("my_id_col"),
+				Type: util.RefString("integer"),
 			})
+			metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
+				Name: util.RefString("name_col"),
+				Type: util.RefString("varchar"),
+			})
+		})
 
+		When("model definition and result set matches", func() {
 			It("should correctly map the values with no row data", func() {
+				// arrange
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,
 					Rows:              make([]types.Row, 0),
@@ -103,6 +104,7 @@ var _ = Describe("Mapper", func() {
 			})
 
 			It("should correctly map the values with row data", func() {
+				// arrange
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,
 					Rows:              make([]types.Row, 0),
@@ -136,31 +138,55 @@ var _ = Describe("Mapper", func() {
 			})
 		})
 
-		When("model definition and result set does not match", func() {
-			var mapper DataMapper
-			var err error
-			var metadata types.ResultSetMetadata
-
-			BeforeEach(func() {
-				mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(mapper).ToNot(BeNil())
-
-				// arrange result set
-				metadata = types.ResultSetMetadata{
-					ColumnInfo: make([]types.ColumnInfo, 0),
+		When("result set definition contains invalid metadata", func() {
+			It("should return error", func() {
+				// arrange
+				metadata.ColumnInfo[0].Name = nil
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
 				}
-				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
-					Name: util.RefString("my_id_col"),
-					Type: util.RefString("integer"),
-				})
-				metadata.ColumnInfo = append(metadata.ColumnInfo, types.ColumnInfo{
-					Name: util.RefString("name_col"),
-					Type: util.RefString("varchar"),
-				})
-			})
 
+				// act
+				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(ContainSubstring("column name from result set is empty"))
+			})
+		})
+
+		When("result set definition contains invalid row data that cannot be casted", func() {
+			It("should return error", func() {
+				// arrange
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				resultSet.Rows = append(resultSet.Rows, types.Row{
+					Data: []types.Datum{
+						{
+							VarCharValue: util.RefString("invalid_int_value"),
+						},
+						{
+							VarCharValue: util.RefString("name_value"),
+						},
+					},
+				})
+
+				// act
+				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
+			})
+		})
+
+		When("model definition and result set does not match", func() {
 			It("should return error on mismatched field count", func() {
+				// arrange
 				metadata.ColumnInfo = metadata.ColumnInfo[1:] // remove first metadata
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,
@@ -176,6 +202,7 @@ var _ = Describe("Mapper", func() {
 			})
 
 			It("should return error on column name not found in model definition", func() {
+				// arrange
 				metadata.ColumnInfo[0].Name = util.RefString("something_other_than_my_id_col")
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,

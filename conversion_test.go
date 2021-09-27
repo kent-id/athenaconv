@@ -69,7 +69,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("-----2147483648")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeInt)
 			Expect(err).To(HaveOccurred())
-			Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid syntax"))
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
 		})
 
 		// anything above int64 range will overflow
@@ -93,7 +93,7 @@ var _ = Describe("Conversion", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("9223372_NOT_VALID_036854775807")}
 			_, err := castAthenaRowData(ctx, rowData, athenaTypeBigInt)
 			Expect(err).To(HaveOccurred())
-			Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid syntax"))
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
 		})
 
 		// anything above int64 range will overflow
