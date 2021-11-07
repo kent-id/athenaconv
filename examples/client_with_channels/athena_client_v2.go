@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,7 +26,7 @@ type athenaClientV2 struct {
 // AthenaClientV2 is a client to AWS Athena providing strongly-typed model binding and using aws-sdk-go-v2
 type AthenaClientV2 interface {
 	GetQueryResults(ctx context.Context, sqlQuery string, dest interface{}) error
-	// GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, modelType reflect.Type, resultsChannel chan<- interface{}, errorsChan chan<- error)
+	GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, dest interface{}) error
 }
 
 // NewAthenaClientV2 constructs new AthenaClient implementation
@@ -51,18 +52,6 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 	if err != nil {
 		return err
 	}
-
-	// // temp code
-	// tmp := reflect.MakeSlice(reflect.SliceOf(modelType), 0, 0)
-	// // tmp2 := reflect.New(reflect.TypeOf(tmp)).Interface()
-	// modelType, err = athenaconv.GetModelType(&tmp)
-	// if err != nil {
-	// 	panic(err)
-	// } else {
-	// 	err = fmt.Errorf("all good - %s", modelType)
-	// 	panic(err)
-	// }
-
 	awsAthenaClient := athena.NewFromConfig(c.awsConfig)
 
 	// 2. start query
@@ -101,13 +90,6 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 			queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
 		}
 
-		// // temp code
-		// tmp := reflect.MakeSlice(reflect.SliceOf(modelType), 0, 0).Addr()
-		// _, err = athenaconv.GetModelType(&tmp)
-		// if err != nil {
-		// 	panic(err)
-		// }
-
 		// get results into dest and append into dest
 		err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 		if err != nil {
@@ -129,87 +111,74 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 }
 
 // GetQueryResultsIntoChannel returns query results for the given SQL query into the results channel
-// func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, modelType reflect.Type, resultsChannel chan<- interface{}, errorsChan chan<- error) {
-// 	closeChannels := func() {
-// 		close(resultsChannel)
-// 		close(errorsChan)
-// 	}
-// 	awsAthenaClient := athena.NewFromConfig(c.awsConfig)
+func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, dest interface{}) error {
+	// 1. first initiallize mapper which will also validate the dest model before we initiate query execution
+	mapper, err := athenaconv.NewMapperFor(dest)
+	if err != nil {
+		return err
+	}
+	awsAthenaClient := athena.NewFromConfig(c.awsConfig)
+	destChannel := reflect.ValueOf(dest)
 
-// 	// 1. start query
-// 	queryExecutionID, err := c.startQueryAndGetExecutionID(ctx, awsAthenaClient, sqlQuery)
-// 	if err != nil {
-// 		errorsChan <- err
-// 		closeChannels()
-// 		return
-// 	}
+	// 1. start query
+	queryExecutionID, err := c.startQueryAndGetExecutionID(ctx, awsAthenaClient, sqlQuery)
+	if err != nil {
+		destChannel.Close()
+		return err
+	}
 
-// 	// 2. get query execution info and wait until query finishes
-// 	state, err := c.waitQueryAndGetState(ctx, awsAthenaClient, queryExecutionID)
-// 	if err != nil {
-// 		errorsChan <- err
-// 		closeChannels()
-// 		return
-// 	}
+	// 2. get query execution info and wait until query finishes
+	state, err := c.waitQueryAndGetState(ctx, awsAthenaClient, queryExecutionID)
+	if err != nil {
+		destChannel.Close()
+		return err
+	}
 
-// 	// 3. finally if query is successful, get the query results output
-// 	if *state == types.QueryExecutionStateSucceeded {
-// 		queryResultInput := athena.GetQueryResultsInput{
-// 			QueryExecutionId: queryExecutionID,
-// 			MaxResults:       &c.maxPageSize,
-// 		}
+	// 3. finally if query is successful, get the query results output
+	if *state == types.QueryExecutionStateSucceeded {
+		queryResultInput := athena.GetQueryResultsInput{
+			QueryExecutionId: queryExecutionID,
+			MaxResults:       &c.maxPageSize,
+		}
 
-// 		mapper, err := athenaconv.NewMapperFor(modelType)
-// 		if err != nil {
-// 			errorsChan <- err
-// 			closeChannels()
-// 			return
-// 		}
+		var nextToken *string = nil
+		var page uint = 1
+		for {
+			queryResultInput.NextToken = nextToken
+			queryResultOutput, err := awsAthenaClient.GetQueryResults(ctx, &queryResultInput)
+			if err != nil {
+				destChannel.Close()
+				return err
+			}
 
-// 		var nextToken *string = nil
-// 		var page uint = 1
-// 		for {
-// 			queryResultInput.NextToken = nextToken
-// 			queryResultOutput, err := awsAthenaClient.GetQueryResults(ctx, &queryResultInput)
-// 			if err != nil {
-// 				errorsChan <- err
-// 				closeChannels()
-// 				return
-// 			}
+			// skip header row if first page results
+			if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
+				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
+			}
 
-// 			// skip header row if first page results
-// 			if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
-// 				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
-// 			}
+			err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
+			if err != nil {
+				destChannel.Close()
+				return err
+			}
 
-// 			mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
-// 			if err != nil {
-// 				errorsChan <- err
-// 				return
-// 			}
+			nextToken = queryResultOutput.NextToken
+			if nextToken == nil {
+				log.Println("msg", "finished fetching results from athena")
+				break
+			}
 
-// 			for _, mappedItem := range mapped {
-// 				mappedItemModel := mappedItem
-// 				resultsChannel <- mappedItemModel
-// 			}
-
-// 			nextToken = queryResultOutput.NextToken
-// 			if nextToken == nil {
-// 				log.Println("msg", "finished fetching results from athena")
-// 				break
-// 			}
-
-// 			page++
-// 			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
-// 		}
-// 	} else {
-// 		err = fmt.Errorf("query execution failed with status: %s", *state)
-// 		errorsChan <- err
-// 		closeChannels()
-// 		return
-// 	}
-// 	closeChannels()
-// }
+			page++
+			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+		}
+	} else {
+		err = fmt.Errorf("query execution failed with status: %s", *state)
+		destChannel.Close()
+		return err
+	}
+	destChannel.Close()
+	return nil
+}
 
 func (c *athenaClientV2) startQueryAndGetExecutionID(ctx context.Context, awsAthenaClient *athena.Client, sqlQuery string) (*string, error) {
 	startQueryExecContext := types.QueryExecutionContext{

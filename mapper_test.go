@@ -43,13 +43,13 @@ var _ = Describe("Mapper", func() {
 				mapper, err = NewMapperFor(&dest)
 			})
 
-			It("should return the underlying struct type for chan *struct", func() {
-				var dest chan *validModel
+			It("should return the underlying struct type for chan struct", func() {
+				var dest chan validModel
 				mapper, err = NewMapperFor(dest)
 			})
 
-			It("should return the underlying struct type for directional chan *struct", func() {
-				var dest chan<- *validModel
+			It("should return the underlying struct type for directional chan struct", func() {
+				var dest chan<- validModel
 				mapper, err = NewMapperFor(dest)
 			})
 		})
@@ -62,8 +62,8 @@ var _ = Describe("Mapper", func() {
 				Expect(strings.ToLower(err.Error())).To(MatchRegexp("invalid type: .*"))
 			})
 
-			It("should return error for []struct", func() {
-				var dest []validModel
+			It("should return error for []*struct (not []struct)", func() {
+				var dest []*validModel
 				_, err = NewMapperFor(dest)
 			})
 
@@ -82,14 +82,14 @@ var _ = Describe("Mapper", func() {
 				_, err = NewMapperFor(dest)
 			})
 
-			It("should return error for chan struct (not chan *struct)", func() {
-				var dest chan validModel
+			It("should return error for chan *struct (not chan struct)", func() {
+				var dest chan *validModel
 				_, err = NewMapperFor(dest)
 			})
 		})
 	})
 
-	Context("FromResultSetV2", func() {
+	Context("ConvertResultSetV2", func() {
 		var metadata types.ResultSetMetadata
 
 		BeforeEach(func() {
@@ -117,7 +117,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []invalidModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -135,7 +135,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []int
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -153,7 +153,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel = nil
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).ToNot(HaveOccurred())
@@ -169,7 +169,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				dest := make([]validModel, 0)
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).ToNot(HaveOccurred())
@@ -198,7 +198,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).ToNot(HaveOccurred())
@@ -222,7 +222,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -251,7 +251,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -270,7 +270,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -287,7 +287,7 @@ var _ = Describe("Mapper", func() {
 
 				// act
 				var dest []validModel
-				err := FromResultSetV2(ctx, &dest, &resultSet)
+				err := ConvertResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())

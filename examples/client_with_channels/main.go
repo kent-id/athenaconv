@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -46,7 +47,7 @@ where cc.org_id = 27826
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
 order by cc.compliance_computer_id
-limit 2
+limit 2100
 `
 )
 
@@ -61,38 +62,37 @@ func main() {
 	}
 	client := NewAthenaClientV2(ctx, awsConfig, workgroup, database, catalog)
 
-	// log.Println("with channel:")
-	// exampleWithChannel(ctx, client, testSQL)
+	log.Println("WITH CHANNEL:")
+	exampleWithChannel(ctx, client, testSQL)
 
-	log.Println("without channel:")
+	log.Println("WITHOUT CHANNEL:")
 	exampleWithoutChannel(ctx, client, testSQL)
 
-	log.Println("program finished")
+	log.Println("PROGRAM FINISHED")
 }
 
-// func exampleWithChannel(ctx context.Context, client AthenaClientV2, sql string) {
-// 	var wg sync.WaitGroup
-// 	resultsChan := make(chan interface{})
-// 	errorsChan := make(chan error)
+func exampleWithChannel(ctx context.Context, client AthenaClientV2, sql string) {
+	dest := make(chan MyModel)
 
-// 	wg.Add(2)
-// 	go func() {
-// 		for item := range resultsChan {
-// 			nextRow := item.(*MyModel)
-// 			log.Println("msg", "received next row data", "data", fmt.Sprintf("%+v", nextRow))
-// 		}
-// 		wg.Done()
-// 	}()
-// 	go func() {
-// 		for err := range errorsChan {
-// 			handleError(err)
-// 		}
-// 		wg.Done()
-// 	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		rows := 0
+		log.Println("msg", "spin up goroutine to handle dest channel")
+		for item := range dest {
+			log.Println("msg", "received next row data", "data", fmt.Sprintf("%+v", item))
+			rows++
+		}
+		log.Println("msg", "dest channel closed, stopping goroutine", "rows", rows)
+		wg.Done()
+	}()
 
-// 	client.GetQueryResultsIntoChannel(ctx, sql, reflect.TypeOf(MyModel{}), resultsChan, errorsChan)
-// 	wg.Wait()
-// }
+	err := client.GetQueryResultsIntoChannel(ctx, sql, dest)
+	if err != nil {
+		handleError(err)
+	}
+	wg.Wait()
+}
 
 func exampleWithoutChannel(ctx context.Context, client AthenaClientV2, sql string) {
 	var dest []MyModel
@@ -103,6 +103,7 @@ func exampleWithoutChannel(ctx context.Context, client AthenaClientV2, sql strin
 	for _, item := range dest {
 		log.Println("msg", "row data", "data", fmt.Sprintf("%+v", item))
 	}
+	log.Println("msg", "received all rows (without channel)", "rows", len(dest))
 }
 
 func handleError(err error) {

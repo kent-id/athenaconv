@@ -12,16 +12,16 @@ import (
 type destMode int
 
 const (
-	slice destMode = iota
-	channel
+	destModeSlice destMode = iota
+	destModeChannel
 )
 
 type dataMapper struct {
 	mu                    sync.Mutex // to guarantee protected read/appends to dest
 	dest                  interface{}
+	mode                  destMode
 	modelType             reflect.Type
 	modelDefinitionSchema modelDefinitionMap
-	mode                  destMode
 }
 
 // DataMapper provides abstraction to convert athena ResultSet object to arbitrary user-defined struct.
@@ -30,71 +30,64 @@ type DataMapper interface {
 	GetModelType() reflect.Type
 }
 
-// NewMapperFor creates new DataMapper for the given *[]struct object where the results will be stored to.
+// NewMapperFor creates new DataMapper for strongly-typed `*[]struct` or `chan *struct` dest where the results will be stored to.
 // This will determine modelType and parse model definition from athenaconv tags in the struct fields,
-// and returns error if any of the model is invalid.
+// and returns error if the model is invalid.
 //
 // Example:
 // var dest []MyModel
 // mapper, err := athenaconv.NewMapperFor(&dest)
-func NewMapperFor(dest interface{}) (mapper DataMapper, err error) {
-	m := &dataMapper{dest: dest}
-	err = m.parseMetadataFromDest()
-
-	mapper = m
-	return
+func NewMapperFor(dest interface{}) (DataMapper, error) {
+	mapper := &dataMapper{dest: dest}
+	err := mapper.parseMetadataFromDest()
+	return mapper, err
 }
 
-// GetModelType tries to get struct type of dest, returns error if dest is not *[]struct TOREV
+// parseMetadataFromDest parses modelType and modelDefinitionSchema from m.dest
 func (m *dataMapper) parseMetadataFromDest() (err error) {
 	m.modelType = nil
 	destType := reflect.TypeOf(m.dest)
 	switch destType.Kind() {
 	case reflect.Ptr:
-		if destType.Elem().Kind() == reflect.Slice && destType.Elem().Elem().Kind() == reflect.Struct {
-			// 1st Elem() gets SLICE/VALUE_TYPE from ptr
-			// 2nd Elem() gets the struct type from the slice
-			m.modelType = destType.Elem().Elem()
+		if destType.Elem().Kind() != reflect.Slice || destType.Elem().Elem().Kind() != reflect.Struct {
+			err = fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
+		} else {
+			m.modelType = destType.Elem().Elem() // 1st elem gets slice from ptr, 2nd elem gets struct type from slice
+			m.mode = destModeSlice
 		}
 	case reflect.Chan:
-		if destType.Elem().Kind() == reflect.Ptr && destType.Elem().Elem().Kind() == reflect.Struct {
-			// 1st Elem() gets *STRUCT from chan
-			// 2nd Elem() gets the struct type from the ptr
-			m.modelType = destType.Elem().Elem()
+		if destType.Elem().Kind() != reflect.Struct {
+			err = fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
+		} else if m.dest == nil {
+			err = fmt.Errorf("invalid type: nil channel received")
+		} else {
+			m.modelType = destType.Elem() // elem gets struct type from chan
+			m.mode = destModeChannel
 		}
+	default:
+		err = fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
 	}
 
-	if m.modelType == nil {
-		return fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
+	if err != nil {
+		return
 	}
 
 	// finally if modelType is valid, parse model definition
 	m.modelDefinitionSchema, err = newModelDefinitionMap(m.modelType)
 	return
-
-	// if destType.Kind() != reflect.Ptr || destType.Elem().Kind() != reflect.Slice || destType.Elem().Elem().Kind() != reflect.Struct {
-	// 	return nil, fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
-	// }
-
-	// if destType.Kind() != reflect.Ptr || destType.Elem().Kind() != reflect.Slice || destType.Elem().Elem().Kind() != reflect.Struct {
-	// 	return nil, fmt.Errorf("invalid type: expecting *[]struct or chan *struct but got '%s' of kind '%s'", destType.String(), destType.Kind().String())
-	// }
-
-	// // 1st Elem() gets VALUE_TYPE from ptr which will be a slice,
-	// // 2nd Elem() gets the struct type from the slice
-	// return destType.Elem().Elem(), nil
 }
 
-// AppendResultSetV2 converts src from aws-sdk-go-v2/service/athena/types/ResultSet an append into strongly-typed dest.
+// AppendResultSetV2 converts src from aws-sdk-go-v2/service/athena/types/ResultSet an appends into dest
 // Returns conversion error if header values are passed, i.e. first row of your athena ResultSet in page 1.
 // Returns error if the athena ResultSetMetadata does not match the mapper definition.
 //
 // Example:
+// var dest []MyModel
+// mapper, err := NewMapperFor(&dest)
 // if page == 1 && len(queryResultOutput.ResultSet.Rows) > 0 {
 // 		queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]		// skip header row
 // }
-// mapped, err := mapper.FromResultSetV2(ctx, queryResultOutput.ResultSet)
-// XX TODO REV DOC
+// err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 func (m *dataMapper) AppendResultSetV2(ctx context.Context, src *typesv2.ResultSet) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -113,7 +106,12 @@ func (m *dataMapper) AppendResultSetV2(ctx context.Context, src *typesv2.ResultS
 
 	// loop through src result set, convert each row to strongly-defined type, and append to result slice
 	rowCount := len(src.Rows)
-	tempDest := reflect.ValueOf(m.dest).Elem()
+	var tempDest reflect.Value
+	if m.mode == destModeSlice {
+		tempDest = reflect.ValueOf(m.dest).Elem()
+	} else {
+		tempDest = reflect.ValueOf(m.dest)
+	}
 
 	LogDebug("reading %d rows from src", rowCount)
 	for i, row := range src.Rows {
@@ -134,38 +132,25 @@ func (m *dataMapper) AppendResultSetV2(ctx context.Context, src *typesv2.ResultS
 			model.Elem().FieldByName(fieldName).Set(reflect.ValueOf(colData))
 		}
 
-		// append model to tempDest
-		LogDebug("appending to result slice: %+v", model.Elem())
-		tempDest = reflect.Append(tempDest, reflect.ValueOf(model.Elem().Interface()))
+		// append/push depending if dest is slice/channel
+		modelToAppend := reflect.ValueOf(model.Elem().Interface())
+		if m.mode == destModeSlice {
+			LogDebug("appending to result slice: %+v", modelToAppend)
+			tempDest = reflect.Append(tempDest, modelToAppend)
+		} else {
+			LogDebug("pushing to result chan: %+v", modelToAppend)
+			tempDest.Send(modelToAppend)
+		}
 	}
 
-	// finally assign tempDest to dest
-	reflect.ValueOf(m.dest).Elem().Set(tempDest)
+	// finally assign tempDest to dest if writing to slice
+	if m.mode == destModeSlice {
+		reflect.ValueOf(m.dest).Elem().Set(tempDest)
+	}
 	return nil
 }
 
-// GetModelType TODO
+// GetModelType gets the underlying struct type based on dest passed to the mapper object.
 func (m *dataMapper) GetModelType() reflect.Type {
 	return m.modelType
-}
-
-// FromResultSetV2 converts ResultSet from aws-sdk-go-v2/service/athena/types into dest where
-// dest: *[]struct to save the results to,
-// struct: has `athenaconv:column_name` tag for each field in the struct.
-//
-// Example:
-// 	var dest []MyModel
-// 	err := athenaconv.FromResultSetV2(ctx, &dest, queryResultOutput.ResultSet)
-func FromResultSetV2(ctx context.Context, dest interface{}, src *typesv2.ResultSet) error {
-	mapper, err := NewMapperFor(dest)
-	if err != nil {
-		return err
-	}
-
-	err = mapper.AppendResultSetV2(ctx, src)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
