@@ -130,7 +130,7 @@ func main() {
 			}
 
 			var output []MyModel
-			err := athenaconv.FromResultSetV2(ctx, &output, queryResultOutput.ResultSet)
+			err := athenaconv.ConvertResultSetV2(ctx, &output, queryResultOutput.ResultSet)
 			if err != nil {
 				handleError(err)
 			}
