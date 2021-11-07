@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/kent-id/athenaconv/sdk/athena"
 )
 
 // MyModel defines a schema that corresponds with your testSQL above
@@ -60,7 +61,7 @@ func main() {
 	if err != nil {
 		handleError(err)
 	}
-	client := NewAthenaClientV2(ctx, awsConfig, workgroup, database, catalog)
+	client := athena.NewClientV2(ctx, awsConfig, workgroup, database, catalog)
 
 	log.Println("WITH CHANNEL:")
 	exampleWithChannel(ctx, client, testSQL)
@@ -71,7 +72,7 @@ func main() {
 	log.Println("PROGRAM FINISHED")
 }
 
-func exampleWithChannel(ctx context.Context, client AthenaClientV2, sql string) {
+func exampleWithChannel(ctx context.Context, client athena.AthenaClientV2, sql string) {
 	dest := make(chan MyModel)
 
 	var wg sync.WaitGroup
@@ -94,7 +95,7 @@ func exampleWithChannel(ctx context.Context, client AthenaClientV2, sql string) 
 	wg.Wait()
 }
 
-func exampleWithoutChannel(ctx context.Context, client AthenaClientV2, sql string) {
+func exampleWithoutChannel(ctx context.Context, client athena.AthenaClientV2, sql string) {
 	var dest []MyModel
 	err := client.GetQueryResults(ctx, sql, &dest)
 	if err != nil {

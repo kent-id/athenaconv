@@ -1,9 +1,8 @@
-package main
+package athena
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 
@@ -12,6 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
 	"github.com/kent-id/athenaconv"
 	"github.com/kent-id/athenaconv/util"
+)
+
+const (
+	maxAllowedPageSize = 1000 // max allowed by athena
 )
 
 type athenaClientV2 struct {
@@ -29,16 +32,16 @@ type AthenaClientV2 interface {
 	GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, dest interface{}) error
 }
 
-// NewAthenaClientV2 constructs new AthenaClient implementation
-func NewAthenaClientV2(ctx context.Context, awsConfig aws.Config, workgroup, database, catalog string) AthenaClientV2 {
-	log.Println("msg", "awslibs.NewAthenaClient", "awsConfig", awsConfig, "workgroup", workgroup, "catalog", catalog, "database", database)
+// NewClientV2 constructs new AthenaClient that can be used.
+func NewClientV2(ctx context.Context, awsConfig aws.Config, workgroup, database, catalog string) AthenaClientV2 {
+	athenaconv.LogInfo("msg", "awslibs.NewAthenaClient", "awsConfig", awsConfig, "workgroup", workgroup, "catalog", catalog, "database", database, "maxPageSize", maxAllowedPageSize)
 	return &athenaClientV2{
 		awsConfig:    awsConfig,
 		workgroup:    workgroup,
 		catalog:      catalog,
 		database:     database,
 		waitInterval: 1 * time.Second,
-		maxPageSize:  1000, // max allowed by athena
+		maxPageSize:  maxAllowedPageSize,
 	}
 }
 
@@ -99,12 +102,12 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 
 		nextToken = queryResultOutput.NextToken
 		if nextToken == nil {
-			log.Println("msg", "finished fetching results from athena")
+			athenaconv.LogInfo("msg", "finished fetching results from athena")
 			break
 		}
 
 		page++
-		log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+		athenaconv.LogInfo("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
 	}
 
 	return nil
@@ -164,12 +167,12 @@ func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuer
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
-				log.Println("msg", "finished fetching results from athena")
+				athenaconv.LogInfo("msg", "finished fetching results from athena")
 				break
 			}
 
 			page++
-			log.Println("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+			athenaconv.LogInfo("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
 		}
 	} else {
 		err = fmt.Errorf("query execution failed with status: %s", *state)
@@ -196,7 +199,7 @@ func (c *athenaClientV2) startQueryAndGetExecutionID(ctx context.Context, awsAth
 	if err != nil {
 		return nil, err
 	}
-	log.Println("msg", "StartQueryExecution result", "result", util.SafeString(startQueryExecOutput.QueryExecutionId))
+	athenaconv.LogInfo("msg", "StartQueryExecution result", "result", util.SafeString(startQueryExecOutput.QueryExecutionId))
 	return startQueryExecOutput.QueryExecutionId, nil
 }
 
@@ -213,10 +216,10 @@ func (c *athenaClientV2) waitQueryAndGetState(ctx context.Context, awsAthenaClie
 		}
 		state = queryExecOutput.QueryExecution.Status.State
 		if state != types.QueryExecutionStateRunning && state != types.QueryExecutionStateQueued {
-			log.Println("msg", "stopped awaiting query results", "state", state)
+			athenaconv.LogInfo("msg", "stopped awaiting query results", "state", state)
 			break
 		}
-		log.Println("msg", "still awaiting query results", "state", state, "waitTime", c.waitInterval)
+		athenaconv.LogInfo("msg", "still awaiting query results", "state", state, "waitTime", c.waitInterval)
 		time.Sleep(c.waitInterval)
 	}
 	return &state, nil
