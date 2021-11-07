@@ -38,7 +38,7 @@ where cc.org_id = 27826
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
 order by cc.compliance_computer_id
-limit 2
+limit 2100
 `
 )
 

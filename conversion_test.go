@@ -28,13 +28,13 @@ var _ = Describe("Conversion", func() {
 	})
 
 	Context("Boolean", func() {
-		It("should return false on true bool value", func() {
+		It("should return true for 'true'", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("true")}
 			result, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(BeTrue())
 		})
-		It("should return true on False bool value", func() {
+		It("should return false for 'False'", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("False")}
 			result, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
 			Expect(err).ToNot(HaveOccurred())
