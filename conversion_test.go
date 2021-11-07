@@ -28,32 +28,45 @@ var _ = Describe("Conversion", func() {
 	})
 
 	Context("Boolean", func() {
-		It("should return false on FALSE bool value", func() {
+		It("should return false on true bool value", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("true")}
 			result, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(BeTrue())
 		})
-		It("should return true on TRUE bool value", func() {
-			rowData := types.Datum{VarCharValue: util.RefString("false")}
+		It("should return true on False bool value", func() {
+			rowData := types.Datum{VarCharValue: util.RefString("False")}
 			result, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(BeFalse())
 		})
-		It("should default to false on invalid bool value", func() {
+		It("should return error if not valid", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("some-invalid-value")}
-			result, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(BeFalse())
+			_, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
+			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
+		})
+
+		It("should return error on nil", func() {
+			rowData := types.Datum{VarCharValue: nil}
+			_, err := castAthenaRowData(ctx, rowData, athenaTypeBool)
+			Expect(err).To(HaveOccurred())
+			Expect(strings.ToLower(err.Error())).To(MatchRegexp("parsing .* invalid syntax"))
 		})
 	})
 
 	Context("String", func() {
-		It("should return value as is", func() {
+		It("should return string value as is", func() {
 			rowData := types.Datum{VarCharValue: util.RefString("test data")}
 			result, err := castAthenaRowData(ctx, rowData, athenaTypeString)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal("test data"))
+		})
+		It("should return empty value on nil", func() {
+			rowData := types.Datum{VarCharValue: nil}
+			result, err := castAthenaRowData(ctx, rowData, athenaTypeString)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(BeEmpty())
 		})
 	})
 

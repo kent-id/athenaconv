@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -30,11 +29,16 @@ select
 	timestamp '2012-10-31 08:11:22' as test_timestamp,
 	date '2021-12-31' as test_date,
 	true as test_bool
-from xxx
+from fnms_compliance_computers_view cc
+join fnms_compliance_computer_connections link
+	on link.org_id = cc.org_id and link.compliance_computer_id = cc.compliance_computer_id
+join fnms_imported_computers_view ic
+	on ic.org_id = link.org_id and ic.connection_id = link.connection_id and ic.external_id = link.external_id
+where cc.org_id = 27826
 group by cc.compliance_computer_id, cc.name
 having count(*) > 1
 order by cc.compliance_computer_id
-limit 5
+limit 2
 `
 )
 
@@ -51,6 +55,9 @@ type MyModel struct {
 }
 
 func main() {
+	// set logLevel for athenaconv, default is WARN
+	// athenaconv.SetLogLevel(athenaconv.LogLevelDebug)
+
 	ctx := context.Background()
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
@@ -98,12 +105,7 @@ func main() {
 		time.Sleep(waitInterval)
 	}
 
-	modelType := reflect.TypeOf(MyModel{})
-	mapper, err := athenaconv.NewMapperFor(modelType)
-	if err != nil {
-		handleError(err)
-	}
-	output := make([]interface{}, 0)
+	var result []MyModel // final result containing athena results from all pages
 
 	// 3. finally if query is successful, get the query results output
 	if state == types.QueryExecutionStateSucceeded {
@@ -127,11 +129,13 @@ func main() {
 				queryResultOutput.ResultSet.Rows = queryResultOutput.ResultSet.Rows[1:]
 			}
 
-			mapped, err := mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
+			var output []MyModel
+			err := athenaconv.FromResultSetV2(ctx, &output, queryResultOutput.ResultSet)
 			if err != nil {
 				handleError(err)
 			}
-			output = append(output, mapped...)
+			log.Println("finished mapping, len(output) =", len(output))
+			result = append(result, output...)
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
@@ -147,8 +151,8 @@ func main() {
 		handleError(err)
 	}
 
-	log.Println("FINAL OUTPUT:")
-	for i, v := range output {
+	log.Println("FINAL OUTPUT below, len =", len(result))
+	for i, v := range result {
 		log.Printf("index %d: %+v\n", i, v)
 	}
 }

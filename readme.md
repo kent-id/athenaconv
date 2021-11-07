@@ -44,7 +44,7 @@ if err != nil {
 }
 
 var mapped []interface{}
-mapped, err = mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
+mapped, err = mapper.FromResultSetV2(ctx, queryResultOutput.ResultSet)
 if err != nil {
     handleError(err)
 }

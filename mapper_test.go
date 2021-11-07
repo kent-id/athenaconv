@@ -29,49 +29,70 @@ var _ = Describe("Mapper", func() {
 	})
 
 	Context("NewMapperFor", func() {
-		When("model type/definition is valid", func() {
-			It("should not return any error", func() {
-				_, err := NewMapperFor(reflect.TypeOf(validModel{}))
+		When("valid type passed", func() {
+			var mapper DataMapper
+			var err error
+
+			AfterEach(func() {
 				Expect(err).ToNot(HaveOccurred())
+				Expect(mapper.GetModelType()).To(Equal(reflect.TypeOf(validModel{})))
+			})
+
+			It("should return the underlying struct type for *[]struct", func() {
+				var dest []validModel
+				mapper, err = NewMapperFor(&dest)
+			})
+
+			It("should return the underlying struct type for chan *struct", func() {
+				var dest chan *validModel
+				mapper, err = NewMapperFor(dest)
+			})
+
+			It("should return the underlying struct type for directional chan *struct", func() {
+				var dest chan<- *validModel
+				mapper, err = NewMapperFor(dest)
 			})
 		})
 
-		When("model type/definition is not valid", func() {
-			It("should return error", func() {
-				_, err := NewMapperFor(reflect.TypeOf(invalidModel{}))
-				Expect(err).To(HaveOccurred())
-				Expect(strings.ToLower(err.Error())).To(MatchRegexp("missing .* name"))
-			})
-		})
+		When("invalid types are passed", func() {
+			var err error
 
-		When("model type/definition is a pointer instead of struct value", func() {
-			It("should return error", func() {
-				_, err := NewMapperFor(reflect.TypeOf(&validModel{}))
+			AfterEach(func() {
 				Expect(err).To(HaveOccurred())
-				Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("invalid type: .*"))
 			})
-		})
 
-		When("model type/definition is a map instead of struct value", func() {
-			It("should return error", func() {
-				testMap := make(map[string]int)
-				_, err := NewMapperFor(reflect.TypeOf(testMap))
-				Expect(err).To(HaveOccurred())
-				Expect(strings.ToLower(err.Error())).To(ContainSubstring("invalid modeltype"))
+			It("should return error for []struct", func() {
+				var dest []validModel
+				_, err = NewMapperFor(dest)
+			})
+
+			It("should return error for int", func() {
+				var dest int
+				_, err = NewMapperFor(dest)
+			})
+
+			It("should return error for map", func() {
+				var dest map[int]string
+				_, err = NewMapperFor(dest)
+			})
+
+			It("should return error for double pointer", func() {
+				var dest **validModel
+				_, err = NewMapperFor(dest)
+			})
+
+			It("should return error for chan struct (not chan *struct)", func() {
+				var dest chan validModel
+				_, err = NewMapperFor(dest)
 			})
 		})
 	})
 
-	Context("FromAthenaResultSetV2", func() {
-		var mapper DataMapper
-		var err error
+	Context("FromResultSetV2", func() {
 		var metadata types.ResultSetMetadata
 
 		BeforeEach(func() {
-			mapper, err = NewMapperFor(reflect.TypeOf(validModel{}))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(mapper).ToNot(BeNil())
-
 			// result set
 			metadata = types.ResultSetMetadata{
 				ColumnInfo: make([]types.ColumnInfo, 0),
@@ -86,8 +107,8 @@ var _ = Describe("Mapper", func() {
 			})
 		})
 
-		When("model definition and result set matches", func() {
-			It("should correctly map the values with no row data", func() {
+		When("model type/definition is not valid", func() {
+			It("should return error", func() {
 				// arrange
 				resultSet := types.ResultSet{
 					ResultSetMetadata: &metadata,
@@ -95,12 +116,65 @@ var _ = Describe("Mapper", func() {
 				}
 
 				// act
-				mapped, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []invalidModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("missing .* name"))
+			})
+		})
+
+		When("model type/definition is a slice of int", func() {
+			It("should return error", func() {
+				// arrange
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				var dest []int
+				err := FromResultSetV2(ctx, &dest, &resultSet)
+
+				// assert
+				Expect(err).To(HaveOccurred())
+				Expect(strings.ToLower(err.Error())).To(MatchRegexp("invalid type: .*"))
+			})
+		})
+
+		When("model definition and result set matches", func() {
+			It("should correctly map the values with no row data with dest being nil", func() {
+				// arrange
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				var dest []validModel = nil
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mapped).ToNot(BeNil())
-				Expect(len(mapped)).To(Equal(0))
+				Expect(dest).To(BeNil())
+			})
+
+			It("should correctly map the values with no row data with dest being an empty slice", func() {
+				// arrange
+				resultSet := types.ResultSet{
+					ResultSetMetadata: &metadata,
+					Rows:              make([]types.Row, 0),
+				}
+
+				// act
+				dest := make([]validModel, 0)
+				err := FromResultSetV2(ctx, &dest, &resultSet)
+
+				// assert
+				Expect(err).ToNot(HaveOccurred())
+				Expect(dest).ToNot(BeNil())
+				Expect(dest).To(HaveLen(0))
 			})
 
 			It("should correctly map the values with row data", func() {
@@ -123,17 +197,16 @@ var _ = Describe("Mapper", func() {
 				}
 
 				// act
-				mapped, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []validModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mapped).ToNot(BeNil())
-				Expect(len(mapped)).To(Equal(100))
-				for index, mappedItem := range mapped {
-					Expect(mappedItem).To(BeAssignableToTypeOf(&validModel{}))
-					casted := mappedItem.(*validModel)
-					Expect(casted.ID).To(Equal(index))
-					Expect(casted.Name).To(Equal("name " + strconv.Itoa(index)))
+				Expect(dest).ToNot(BeNil())
+				Expect(dest).To(HaveLen(100))
+				for index, item := range dest {
+					Expect(item.ID).To(Equal(index))
+					Expect(item.Name).To(Equal("name " + strconv.Itoa(index)))
 				}
 			})
 		})
@@ -148,7 +221,8 @@ var _ = Describe("Mapper", func() {
 				}
 
 				// act
-				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []validModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -176,7 +250,8 @@ var _ = Describe("Mapper", func() {
 				})
 
 				// act
-				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []validModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -194,7 +269,8 @@ var _ = Describe("Mapper", func() {
 				}
 
 				// act
-				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []validModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
@@ -210,7 +286,8 @@ var _ = Describe("Mapper", func() {
 				}
 
 				// act
-				_, err := mapper.FromAthenaResultSetV2(ctx, &resultSet)
+				var dest []validModel
+				err := FromResultSetV2(ctx, &dest, &resultSet)
 
 				// assert
 				Expect(err).To(HaveOccurred())
