@@ -113,33 +113,39 @@ func (m *dataMapper) AppendResultSetV2(ctx context.Context, src *typesv2.ResultS
 		tempDest = reflect.ValueOf(m.dest)
 	}
 
-	LogDebug("reading %d rows from src", rowCount)
+	LogDebugf("mapping %d row(s) from src", rowCount)
 	for i, row := range src.Rows {
 		// construct model of type modelType and set each field value within the struct
 		model := reflect.New(m.modelType)
 		for athenaColName, modelDefColInfo := range m.modelDefinitionSchema {
 			mappedColumnInfo := resultSetSchema[athenaColName]
 			fieldName := modelDefColInfo.fieldName
+			dest := model.Elem().FieldByName(fieldName)
+			destKind := dest.Kind()
 
 			if i == 0 {
-				LogDebug("SET model.%s = row.Data[%d] with athena col name = '%s'", fieldName, mappedColumnInfo.index, athenaColName) // log only 1st row for brevity
+				// only log 1st row for brevity
+				LogDebugf("assigning model.%s; athenaColName: %s, destKind: %s, mappedColumnInfo: %+v", fieldName, athenaColName, destKind.String(), mappedColumnInfo)
 			}
 
-			colData, err := castAthenaRowData(ctx, row.Data[mappedColumnInfo.index], mappedColumnInfo.athenaColumnType)
+			castedData, err := castAthenaRowData(ctx, row.Data[mappedColumnInfo.index], mappedColumnInfo.athenaColumnType, destKind)
 			if err != nil {
 				return err
 			}
-			model.Elem().FieldByName(fieldName).Set(reflect.ValueOf(colData))
+			if castedData != nil {
+				dest.Set(reflect.ValueOf(castedData))
+			}
 		}
 
 		// append/push depending if dest is slice/channel
 		modelToAppend := reflect.ValueOf(model.Elem().Interface())
 		if m.mode == destModeSlice {
-			LogDebug("appending to result slice: %+v", modelToAppend)
 			tempDest = reflect.Append(tempDest, modelToAppend)
 		} else {
-			LogDebug("pushing to result chan: %+v", modelToAppend)
 			tempDest.Send(modelToAppend)
+		}
+		if i == 0 {
+			LogDebugf("appended to result slice/chan, model: %+v", modelToAppend)
 		}
 	}
 

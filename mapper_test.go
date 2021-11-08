@@ -13,8 +13,8 @@ import (
 )
 
 type validModel struct {
-	ID   int    `athenaconv:"my_id_col"`
-	Name string `athenaconv:"name_col"`
+	ID   *int    `athenaconv:"my_id_col"`
+	Name *string `athenaconv:"name_col"`
 }
 
 type invalidModel struct {
@@ -205,10 +205,55 @@ var _ = Describe("Mapper", func() {
 				Expect(dest).ToNot(BeNil())
 				Expect(dest).To(HaveLen(100))
 				for index, item := range dest {
-					Expect(item.ID).To(Equal(index))
-					Expect(item.Name).To(Equal("name " + strconv.Itoa(index)))
+					Expect(item.ID).ToNot(BeNil())
+					Expect(*item.ID).To(Equal(index))
+					Expect(item.Name).ToNot(BeNil())
+					Expect(*item.Name).To(Equal("name " + strconv.Itoa(index)))
 				}
 			})
+		})
+
+		It("should correctly map the values with row data which contains nil", func() {
+			// arrange
+			resultSet := types.ResultSet{
+				ResultSetMetadata: &metadata,
+				Rows:              make([]types.Row, 0),
+			}
+			resultSet.Rows = append(resultSet.Rows, types.Row{
+				Data: []types.Datum{
+					{
+						VarCharValue: util.RefString("1"),
+					},
+					{
+						VarCharValue: util.RefString("name 1"),
+					},
+				},
+			})
+			resultSet.Rows = append(resultSet.Rows, types.Row{
+				Data: []types.Datum{
+					{
+						VarCharValue: nil,
+					},
+					{
+						VarCharValue: nil,
+					},
+				},
+			})
+
+			// act
+			var dest []validModel
+			err := ConvertResultSetV2(ctx, &dest, &resultSet)
+
+			// assert
+			Expect(err).ToNot(HaveOccurred())
+			Expect(dest).ToNot(BeNil())
+			Expect(dest).To(HaveLen(2))
+			Expect(dest[0].ID).ToNot(BeNil())
+			Expect(*dest[0].ID).To(Equal(1))
+			Expect(dest[0].Name).ToNot(BeNil())
+			Expect(*dest[0].Name).To(Equal("name 1"))
+			Expect(dest[1].ID).To(BeNil())
+			Expect(dest[1].Name).To(BeNil())
 		})
 
 		When("result set definition contains invalid metadata", func() {

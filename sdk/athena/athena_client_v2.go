@@ -26,15 +26,16 @@ type athenaClientV2 struct {
 	maxPageSize  int32
 }
 
-// AthenaClientV2 is a client to AWS Athena providing strongly-typed model binding and using aws-sdk-go-v2
+// AthenaClientV2 is a client to AWS Athena providing strongly-typed model binding.
+// Underlying AWS client from aws-sdk-go-v2 is used.
 type AthenaClientV2 interface {
 	GetQueryResults(ctx context.Context, sqlQuery string, dest interface{}) error
 	GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, dest interface{}) error
 }
 
-// NewClientV2 constructs new AthenaClient that can be used.
+// NewClientV2 constructs new AthenaClientV2 using specified aws-sdk-go-v2/aws/config, workgroup, database name, and catalog name in Athena
 func NewClientV2(ctx context.Context, awsConfig aws.Config, workgroup, database, catalog string) AthenaClientV2 {
-	athenaconv.LogInfo("msg", "awslibs.NewAthenaClient", "awsConfig", awsConfig, "workgroup", workgroup, "catalog", catalog, "database", database, "maxPageSize", maxAllowedPageSize)
+	athenaconv.LogInfof("creating athena client with workgroup: %s, database: %s, catalog: %s, pageSize: %d, config: %+v", workgroup, database, catalog, maxAllowedPageSize, awsConfig)
 	return &athenaClientV2{
 		awsConfig:    awsConfig,
 		workgroup:    workgroup,
@@ -45,7 +46,8 @@ func NewClientV2(ctx context.Context, awsConfig aws.Config, workgroup, database,
 	}
 }
 
-// GetQueryResults returns query results for the given SQL query
+// GetQueryResults gets query results for the given SQL query and outputs into dest slice.
+//
 // Example:
 // var output []myStruct
 // err := client.GetQueryResults(ctx, "select id from my_table", &output)
@@ -64,14 +66,15 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 	}
 
 	// 3. get query execution info and wait until query finishes
-	state, err := c.waitQueryAndGetState(ctx, awsAthenaClient, queryExecutionID)
+	status, err := c.waitQueryAndGetStatus(ctx, awsAthenaClient, queryExecutionID)
 	if err != nil {
 		return err
 	}
 
 	// 4. finally if query is successful, get the query results output
-	if *state != types.QueryExecutionStateSucceeded {
-		err = fmt.Errorf("query execution failed with status: %s", *state)
+	if status.State != types.QueryExecutionStateSucceeded {
+		reason := util.SafeString(status.StateChangeReason)
+		err = fmt.Errorf("query execution failed with status: %s, reason: %s", status.State, reason)
 		return err
 	}
 	queryResultInput := athena.GetQueryResultsInput{
@@ -96,24 +99,23 @@ func (c *athenaClientV2) GetQueryResults(ctx context.Context, sqlQuery string, d
 		// get results into dest and append into dest
 		err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 		if err != nil {
-			err = fmt.Errorf("err1 - %s", err.Error())
 			return err
 		}
 
 		nextToken = queryResultOutput.NextToken
 		if nextToken == nil {
-			athenaconv.LogInfo("msg", "finished fetching results from athena")
+			athenaconv.LogInfof("finished fetching results from athena")
 			break
 		}
 
 		page++
-		athenaconv.LogInfo("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+		athenaconv.LogInfof("fetching next page %d results from athena using nextToken: %s", page, nextToken)
 	}
 
 	return nil
 }
 
-// GetQueryResultsIntoChannel returns query results for the given SQL query into the results channel
+// GetQueryResultsIntoChannel gets query results for the given SQL query into dest channel.
 func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuery string, dest interface{}) error {
 	// 1. first initiallize mapper which will also validate the dest model before we initiate query execution
 	mapper, err := athenaconv.NewMapperFor(dest)
@@ -131,14 +133,14 @@ func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuer
 	}
 
 	// 2. get query execution info and wait until query finishes
-	state, err := c.waitQueryAndGetState(ctx, awsAthenaClient, queryExecutionID)
+	status, err := c.waitQueryAndGetStatus(ctx, awsAthenaClient, queryExecutionID)
 	if err != nil {
 		destChannel.Close()
 		return err
 	}
 
 	// 3. finally if query is successful, get the query results output
-	if *state == types.QueryExecutionStateSucceeded {
+	if status.State == types.QueryExecutionStateSucceeded {
 		queryResultInput := athena.GetQueryResultsInput{
 			QueryExecutionId: queryExecutionID,
 			MaxResults:       &c.maxPageSize,
@@ -167,15 +169,16 @@ func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuer
 
 			nextToken = queryResultOutput.NextToken
 			if nextToken == nil {
-				athenaconv.LogInfo("msg", "finished fetching results from athena")
+				athenaconv.LogInfof("finished fetching results from athena")
 				break
 			}
 
 			page++
-			athenaconv.LogInfo("msg", "fetching next page results from athena", "nextToken", *nextToken, "nextPage", page)
+			athenaconv.LogInfof("fetching next page %d results from athena using nextToken: %s", page, nextToken)
 		}
 	} else {
-		err = fmt.Errorf("query execution failed with status: %s", *state)
+		reason := util.SafeString(status.StateChangeReason)
+		err = fmt.Errorf("query execution failed with status: %s, reason: %s", status.State, reason)
 		destChannel.Close()
 		return err
 	}
@@ -183,6 +186,7 @@ func (c *athenaClientV2) GetQueryResultsIntoChannel(ctx context.Context, sqlQuer
 	return nil
 }
 
+// startQueryAndGetExecutionID starts query execution and get the execution id to identify the running query in Athena.
 func (c *athenaClientV2) startQueryAndGetExecutionID(ctx context.Context, awsAthenaClient *athena.Client, sqlQuery string) (*string, error) {
 	startQueryExecContext := types.QueryExecutionContext{
 		Database: util.RefString(c.database),
@@ -199,28 +203,29 @@ func (c *athenaClientV2) startQueryAndGetExecutionID(ctx context.Context, awsAth
 	if err != nil {
 		return nil, err
 	}
-	athenaconv.LogInfo("msg", "StartQueryExecution result", "result", util.SafeString(startQueryExecOutput.QueryExecutionId))
+	athenaconv.LogInfof("started query with ExecutionID: %s", util.SafeString(startQueryExecOutput.QueryExecutionId))
 	return startQueryExecOutput.QueryExecutionId, nil
 }
 
-func (c *athenaClientV2) waitQueryAndGetState(ctx context.Context, awsAthenaClient *athena.Client, queryExecutionID *string) (*types.QueryExecutionState, error) {
+// waitQueryAndGetStatus waits until query execution finishes and return QueryExecutionStatus.
+func (c *athenaClientV2) waitQueryAndGetStatus(ctx context.Context, awsAthenaClient *athena.Client, queryExecutionID *string) (*types.QueryExecutionStatus, error) {
 	queryExecInput := athena.GetQueryExecutionInput{
 		QueryExecutionId: queryExecutionID,
 	}
 
-	var state types.QueryExecutionState
+	var status *types.QueryExecutionStatus
 	for {
 		queryExecOutput, err := awsAthenaClient.GetQueryExecution(ctx, &queryExecInput)
 		if err != nil {
 			return nil, err
 		}
-		state = queryExecOutput.QueryExecution.Status.State
-		if state != types.QueryExecutionStateRunning && state != types.QueryExecutionStateQueued {
-			athenaconv.LogInfo("msg", "stopped awaiting query results", "state", state)
+		status = queryExecOutput.QueryExecution.Status
+		if status.State != types.QueryExecutionStateRunning && status.State != types.QueryExecutionStateQueued {
+			athenaconv.LogInfof("stopped query execution with state: %s", status.State)
 			break
 		}
-		athenaconv.LogInfo("msg", "still awaiting query results", "state", state, "waitTime", c.waitInterval)
+		athenaconv.LogInfof("still awaiting query resultswith state: %s, waitInterval: %s", status.State, c.waitInterval)
 		time.Sleep(c.waitInterval)
 	}
-	return &state, nil
+	return status, nil
 }
