@@ -42,7 +42,7 @@ You can convert your `athena.GetQueryResultOutput` object to strongly-typed `des
 ```go
 var dest []MyModel 
 mapper, err := athenaconv.NewMapperFor(&dest)
-err = dest.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
+err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 ```
 
 **`dest` being a channel:**
@@ -50,7 +50,7 @@ err = dest.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 ```go
 dest := make(chan MyModel)
 mapper, err := athenaconv.NewMapperFor(dest)
-err = dest.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
+err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
 ```
 
 **one time conversion without creating data mapper:**
