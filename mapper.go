@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync"
 
-	typesv2 "github.com/aws/aws-sdk-go-v2/service/athena/types"
+	typesv2 "github.com/kent-id/athenaconv/types"
 )
 
 type destMode int

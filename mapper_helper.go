@@ -3,7 +3,7 @@ package athenaconv
 import (
 	"context"
 
-	typesv2 "github.com/aws/aws-sdk-go-v2/service/athena/types"
+	typesv2 "github.com/kent-id/athenaconv/types"
 )
 
 // ConvertResultSetV2 converts ResultSet from aws-sdk-go-v2/service/athena/types into dest.

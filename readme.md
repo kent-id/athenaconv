@@ -75,7 +75,7 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 | other data types                         | string                               | Other data types currently unsupported, default to string (no conversion) |
 
 ## Supported AWS SDK version
-- [github.com/aws/aws-sdk-go-v2/service/athena/types](https://github.com/aws/aws-sdk-go-v2/tree/main/service/athena/types)
+- [github.com/kent-id/athenaconv/types](https://github.com/aws/aws-sdk-go-v2/tree/main/service/athena/types)
 
 ## Roadmap / items to review
 - [ ] Add more data type support in conversion.go

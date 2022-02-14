@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/service/athena/types"
+	"github.com/kent-id/athenaconv/types"
 	"github.com/kent-id/athenaconv/util"
 )
 
