@@ -1,10 +1,8 @@
 module github.com/kent-id/athenaconv
 
-go 1.16
+go 1.14
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.11.0
-	github.com/aws/aws-sdk-go-v2/config v1.10.0
 	github.com/aws/aws-sdk-go-v2/service/athena v1.8.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/onsi/ginkgo v1.16.4
