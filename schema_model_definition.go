@@ -23,8 +23,8 @@ func newModelDefinitionMap(modelType reflect.Type) (modelDefinitionMap, error) {
 		return nil, err
 	}
 
-	schema := make(map[string]modelDefinitionColInfo)
 	// generate schema from struct tags:
+	schema := make(map[string]modelDefinitionColInfo)
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
 		fieldName := field.Name

@@ -35,23 +35,29 @@ from my_glue_catalog_table
 group by id, name
 ```
 
-You can convert your `athena.GetQueryResultOutput` object to strongly-typed struct `MyModel` by doing this:
+You can convert your `athena.GetQueryResultOutput` object to strongly-typed `dest`:
+
+**`dest` being a slice:**
 
 ```go
-mapper, err := athenaconv.NewMapperFor(reflect.TypeOf(MyModel{}))
-if err != nil {
-    handleError(err)
-}
+var dest []MyModel 
+mapper, err := athenaconv.NewMapperFor(&dest)
+err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
+```
 
-var mapped []interface{}
-mapped, err = mapper.FromAthenaResultSetV2(ctx, queryResultOutput.ResultSet)
-if err != nil {
-    handleError(err)
-}
-for _, mappedItem := range mapped {
-    mappedItemModel := mappedItem.(*MyModel)
-    fmt.Printf("%+v\n", *mappedItemModel)
-}
+**`dest` being a channel:**
+
+```go
+dest := make(chan MyModel)
+mapper, err := athenaconv.NewMapperFor(dest)
+err = mapper.AppendResultSetV2(ctx, queryResultOutput.ResultSet)
+```
+
+**one time conversion without creating data mapper:**
+
+```go
+var dest []MyModel 
+err := athenaconv.ConvertResultSetV2(ctx, &dest, queryResultOutput.ResultSet)
 ```
 
 ## Supported data types
@@ -73,4 +79,3 @@ See [conversion.go](https://github.com/kent-id/athenaconv/blob/main/conversion.g
 
 ## Roadmap / items to review
 - [ ] Add more data type support in conversion.go
-- [ ] Review usage of logging (best practice for logging in golang packages)

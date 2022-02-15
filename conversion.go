@@ -2,7 +2,7 @@ package athenaconv
 
 import (
 	"context"
-	"log"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -11,38 +11,62 @@ import (
 	"github.com/kent-id/athenaconv/util"
 )
 
-func castAthenaRowData(ctx context.Context, rowData types.Datum, athenaType string) (interface{}, error) {
+func castAthenaRowData(ctx context.Context, rowData types.Datum, athenaType string, destKind reflect.Kind) (interface{}, error) {
 	data := util.SafeString(rowData.VarCharValue)
-
-	var castedData interface{} = nil
-	var err error = nil
+	if athenaType != "varchar" && data == "" && destKind == reflect.Ptr {
+		return nil, nil
+	}
 
 	// for supported data types, see https://docs.aws.amazon.com/athena/latest/ug/data-types.html
 	switch athenaType {
 	case "boolean":
-		castedData = strings.ToLower(data) == "true"
-	case "varchar":
-		castedData = data
+		v, err := strconv.ParseBool(data)
+		if destKind == reflect.Ptr {
+			return &v, err
+		}
+		return v, err
 	case "integer":
-		castedData, err = strconv.Atoi(data)
+		v, err := strconv.Atoi(data)
+		if destKind == reflect.Ptr {
+			return &v, err
+		}
+		return v, err
 	case "bigint":
-		castedData, err = strconv.ParseInt(data, 10, 64)
+		v, err := strconv.ParseInt(data, 10, 64)
+		if destKind == reflect.Ptr {
+			return &v, err
+		}
+		return v, err
 	case "array":
 		arrayValueString := strings.Trim(data, "[]")
-		newStringSlice := make([]string, 0)
-		if len(arrayValueString) > 0 {
-			arrayValue := strings.Split(arrayValueString, ", ")
-			newStringSlice = append(newStringSlice, arrayValue...)
+		var v []string
+		if len(arrayValueString) == 0 {
+			v = make([]string, 0)
+		} else {
+			v = strings.Split(arrayValueString, ", ")
 		}
-		castedData = newStringSlice
+		return v, nil
 	case "timestamp":
-		castedData, err = time.Parse("2006-01-02 15:04:05", data)
+		v, err := time.Parse("2006-01-02 15:04:05", data)
+		if destKind == reflect.Ptr {
+			return &v, err
+		}
+		return v, err
 	case "date":
-		castedData, err = time.Parse("2006-01-02", data)
+		v, err := time.Parse("2006-01-02", data)
+		if destKind == reflect.Ptr {
+			return &v, err
+		}
+		return v, err
 	default:
-		log.Printf("ATHENA DATA TYPE NOT SUPPORTED: '%s', defaulting to string\n", athenaType)
-		castedData = data
-	}
+		if athenaType != "varchar" {
+			LogWarnf("athena data type '%s' not supported, defaulting to string: if this is intended consider doing conversion in SQL to be explicit", athenaType)
+		}
 
-	return castedData, err
+		v := rowData.VarCharValue
+		if destKind == reflect.Ptr {
+			return v, nil
+		}
+		return util.SafeString(v), nil
+	}
 }
